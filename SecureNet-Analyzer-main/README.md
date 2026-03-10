@@ -140,13 +140,6 @@ The developers explicitly endorse the use of this code only in **educational env
 Before using this tool, ensure you have **written authorization** and adhere to all relevant laws and ethical guidelines.
 **It is crucial that this tool is used ethically and legally. Unauthorized use could result in severe consequences under law.**
 
----
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
 
 ## Acknowledgements
 
