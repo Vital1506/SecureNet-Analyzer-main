@@ -1,161 +1,212 @@
-# SecureNet Analyzer
+<div align="center">
 
-**SecureNet Analyzer** is a powerful Python-based network traffic monitoring and security tool designed for network administrators, cybersecurity professionals, and penetration testers. This tool provides real-time packet capture, live host detection, vulnerability analysis, and secure user authentication to ensure robust network security.
+# 🛰️ SecureNet Analyzer
 
----
+**A Python-based network traffic monitoring, live-host detection, and packet analysis toolkit**
 
-## Overview
+[![Python Version](https://img.shields.io/badge/python-3.x-blue?logo=python&style=flat-square)](https://www.python.org)
+[![Scapy](https://img.shields.io/badge/built%20with-Scapy-critical?style=flat-square)](https://scapy.net)
+[![License](https://img.shields.io/badge/license-Educational%20%2F%20Authorized%20Use%20Only-important?style=flat-square)](#-license)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](#-contributing)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey?style=flat-square)](#-requirements)
 
-**SecureNet Analyzer** captures and analyzes network traffic, detects live devices on the network, and helps identify potential vulnerabilities and threats. Leveraging the **Scapy** library for packet crafting, it offers real-time packet analysis, live host detection using ARP requests, custom packet creation, and secure user authentication with SHA-256 hashing for login security.
+[Features](#-features) •
+[Installation](#-installation) •
+[Usage](#-usage-examples) •
+[Security](#-security-considerations) •
+[Legal](#-legal-disclaimer)
 
-The tool is ideal for network monitoring, device enumeration, and testing the resilience of your network against various cyber threats.
+</div>
 
----
-
-## Table of Contents
-
-1. [Features](#features)
-2. [Requirements](#requirements)
-3. [Installation Instructions](#installation-instructions)
-4. [Usage Examples](#usage-examples)
-5. [Security Considerations](#security-considerations)
-6. [Troubleshooting](#troubleshooting)
-7. [Contributing](#contributing)
-8. [Legal Disclaimer](#legal-disclaimer)
-9. [License](#license)
-10. [Acknowledgements](#acknowledgements)
-11. [Conclusion](#conclusion)
-12. [Contact](#contact)
+> ⚠️ **Authorized use only.** This tool is intended strictly for educational environments and penetration testing engagements where you have **explicit written authorization**. See the [Legal Disclaimer](#-legal-disclaimer) before doing anything else.
 
 ---
 
-## Features
+## 📖 Overview
 
-- **Packet Capture and Analysis**: Capture and analyze network traffic from any network interface. Extract detailed information including IPs, ports, protocols, and payloads.
-- **Live Host Detection**:Detect live devices on your network using ARP requests, mapping their IP, MAC addresses, and NIC vendor names.
-- **Packet Creation and Sending**: Craft custom packets and send them to specified addresses for network testing and vulnerability assessment.
-- **SHA-256 Authentication**: Implement secure user authentication with password hashing using SHA-256.
-- **Data Export**: Export captured packets in **PCAP** and **TXT** formats for further analysis and sharing.
-- **Vulnerability Detection**: Analyze packets to detect unusual traffic patterns and potential security issues.
+**SecureNet Analyzer** captures and analyzes network traffic, detects live devices on a network, and helps surface potential vulnerabilities and unusual traffic patterns. Built on the [**Scapy**](https://scapy.net) packet-crafting library, it combines real-time packet analysis, ARP-based live host detection, custom packet construction, and secure credential handling into a single CLI toolkit.
+
+It's aimed at **network administrators**, **cybersecurity professionals**, and **penetration testers** who need a lightweight, scriptable way to inspect traffic and enumerate devices during authorized assessments.
 
 ---
 
-## Requirements
+## 📑 Table of Contents
 
-- **Python 3**: Ensure you have Python 3 or later installed.
-- **Scapy Library**: This tool requires Scapy for network packet crafting.
-
-
----
-
-## Installation Instructions
-
-
-2. **Navigate to the project directory:**
-    ```bash
-    cd SecureNet-Analyzer
-    ```
-
-3. **Install the required dependencies using pip**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-3. **Run the Application**:
-    ```bash
-    python Main.py  [option] [arguments]
-    ```
-
-### Ensure Privileges:
-Since the tool requires access to network interfaces, make sure to run the script with elevated privileges:
-
-- **On Linux/macOS:**
-    ```bash
-    sudo python main.py
-    ```
-
-- **On Windows:** Ensure you run the command prompt or PowerShell as **Administrator**.
+1. [Features](#-features)
+2. [Requirements](#-requirements)
+3. [Installation](#-installation)
+4. [Usage Examples](#-usage-examples)
+5. [Security Considerations](#-security-considerations)
+6. [Troubleshooting](#-troubleshooting)
+7. [Contributing](#-contributing)
+8. [Legal Disclaimer](#-legal-disclaimer)
+9. [License](#-license)
+10. [Acknowledgements](#-acknowledgements)
+11. [Contact](#-contact)
 
 ---
 
-## Usage Examples
+## ✨ Features
 
-The tool operates via the command line interface (CLI). Below are some basic commands and examples:
+| Capability | Description |
+|---|---|
+| 📡 **Packet Capture & Analysis** | Capture traffic from any network interface and extract IPs, ports, protocols, and payload details |
+| 🔍 **Live Host Detection** | Enumerate live devices via ARP requests, mapping IP, MAC address, and NIC vendor |
+| 🛠 **Custom Packet Crafting** | Build and send custom packets for controlled network testing and assessment |
+| 🔐 **SHA-256 Authentication** | User login secured with SHA-256 password hashing — no plaintext credential storage |
+| 💾 **Data Export** | Export captured traffic to **PCAP** or **TXT** for further analysis (e.g., in Wireshark) |
+| 🚨 **Vulnerability Signal Detection** | Flag unusual traffic patterns that may indicate security issues |
 
-### Options:
-- `-c` or `--capture`: Start packet capture and analysis.
-- `-lh` or `--live-host`: Perform live host detection on the network.
+---
 
-### Common Arguments:
-- `--i [interface]`: Specify the network interface to capture packets from (e.g., eth0, Wi-Fi).
-- `--pc [number]`: Specify the number of packets to capture.
-- `--a`: Analyze captured packets in real-time.
-- `--s`: Save captured packets.
-- `--p [filename]`: Save captured packets in PCAP format.
-- `--t [filename]`: Save captured packets in TXT format.
-- `--f [filter]`: Define a filter condition (e.g., 'src host 192.168.1.1 and tcp').
-- `--ip [IP address]`: Specify an IP address for live host detection.
+## 🧰 Requirements
 
-### Example 1: Start Packet Capture
+| Requirement | Notes |
+|---|---|
+| **Python 3.x** | Required to run the tool |
+| **Scapy** | Core dependency for packet crafting and capture |
+| **Administrator / root privileges** | Required for raw packet capture on any OS |
+
+All Python dependencies are pinned in [`requirements.txt`](requirements.txt).
+
+---
+
+## ⚙️ Installation
+
+### 1. Clone the repository
 ```bash
-python Main.py c --i Wi-Fi --pc 10 --a --s --p captured_traffic.pcap 
+git clone https://github.com/<your-username>/SecureNet-Analyzer.git
+cd SecureNet-Analyzer
 ```
 
-### Example 2: Live Host Detection
+### 2. Install dependencies
 ```bash
-python Main.py lh --ip 192.168.1.1
+pip install -r requirements.txt
 ```
-## Security Considerations
 
-- **Password Storage**: Passwords are securely stored using SHA-256 hashing and never stored in plain text.
-- **Network Monitoring**: Use the tool responsibly only on networks where you have explicit permission to capture and analyze traffic. Unauthorized traffic analysis may be illegal and unethical.
-- **ARP Spoofing**: The tool uses ARP requests for live host detection, which could trigger ARP spoofing alerts on certain networks. Ensure the tool is used in authorized environments.
+### 3. Run with elevated privileges
+Packet capture requires raw socket access, so the tool must run with elevated permissions:
 
----
+**Linux / macOS:**
+```bash
+sudo python3 Main.py [option] [arguments]
+```
 
-## Troubleshooting
-
-- **Permission Issues**: If you are unable to capture packets, ensure you are running the tool with the appropriate permissions (e.g., using **sudo** on Linux/macOS).
-- **Missing Dependencies**: If the tool fails to run due to missing dependencies, verify that you have installed all required packages as outlined in the installation instructions.
-- **Network Interface Not Detected**: If the network interface is not detected, verify it is available by running **ifconfig** (Linux/macOS) or **ipconfig** (Windows) to check available interfaces.
-
----
-
-## Contributing
-
-Contributions are welcome! If you'd like to contribute to this project, please fork the repository and submit a pull request with your improvements or bug fixes. When submitting changes, please ensure:
-
-- Code is well-documented.
-- Any new features are accompanied by clear explanations and examples.
-- Tests are provided for new functionalities (if applicable).
+**Windows:**
+Run Command Prompt or PowerShell **as Administrator**, then:
+```bash
+python Main.py [option] [arguments]
+```
 
 ---
 
-## Legal Disclaimer
+## 🖥 Usage Examples
 
-The use of code contained in this repository, either in part or in its entirety, for engaging with targets without prior, explicit mutual consent is **illegal**. It is the **end user's responsibility** to comply with all applicable **local, state, and federal laws**.
+SecureNet Analyzer is driven entirely through the CLI.
 
-The developers assume **no liability** and are **not responsible** for any misuse or damages caused by the use of any code contained in this repository. This applies in any event, whether **accidental** or **intentional**, if the code is utilized by a threat actor or unauthorized entity to **compromise** the security, privacy, confidentiality, integrity, and/or availability of systems or associated resources. In this context, **"compromise"** refers to the **exploitation of known or unknown vulnerabilities** in systems, including, but not limited to, weaknesses in **security controls** (human- or electronically-enabled).
+### Primary Options
+| Flag | Description |
+|---|---|
+| `-c`, `--capture` | Start packet capture and analysis |
+| `-lh`, `--live-host` | Perform live host detection on the network |
 
-The developers explicitly endorse the use of this code only in **educational environments** for the purpose of learning or teaching cybersecurity concepts and in **authorized penetration testing engagements**, where the system owner has given **explicit consent**. The goal should be to identify and mitigate vulnerabilities and protect systems from potential exploitation by malicious agents, as outlined in the respective threat models.
-Before using this tool, ensure you have **written authorization** and adhere to all relevant laws and ethical guidelines.
-**It is crucial that this tool is used ethically and legally. Unauthorized use could result in severe consequences under law.**
+### Common Arguments
+| Flag | Description |
+|---|---|
+| `--i [interface]` | Network interface to capture from (e.g. `eth0`, `Wi-Fi`) |
+| `--pc [number]` | Number of packets to capture |
+| `--a` | Analyze captured packets in real time |
+| `--s` | Save captured packets |
+| `--p [filename]` | Save captured packets in PCAP format |
+| `--t [filename]` | Save captured packets in TXT format |
+| `--f [filter]` | Filter expression (e.g. `'src host 192.168.1.1 and tcp'`) |
+| `--ip [address]` | Target IP address for live host detection |
 
-## Acknowledgements
+### Example 1 — Capture & save traffic
+```bash
+python Main.py -c --i Wi-Fi --pc 10 --a --s --p captured_traffic.pcap
+```
+Captures 10 packets on the `Wi-Fi` interface, analyzes them in real time, and saves the result as a PCAP file.
 
-- **Scapy**: For providing powerful functionality for packet crafting and sending.
-- **Python 3.x**: For the simplicity and flexibility it offers for network programming.
-- **Wireshark**: For being a trusted tool for analyzing PCAP files, which you can use alongside this tool.
+### Example 2 — Live host detection
+```bash
+python Main.py -lh --ip 192.168.1.1
+```
+Sends ARP requests to identify live devices on the `192.168.1.0/24` network reachable from `192.168.1.1`.
 
 ---
 
-## Conclusion
+## 🔒 Security Considerations
 
-**SecureNet Analyzer** is a robust and versatile tool designed for network security monitoring, packet analysis, and vulnerability detection. Whether you are a network administrator, a cybersecurity professional, or a penetration tester, this tool will provide valuable insights into network behavior, enhance security monitoring, and assist with identifying potential threats and vulnerabilities.
+- **Password storage** — credentials are hashed with SHA-256 and never stored in plaintext.
+- **Authorized networks only** — only run this tool on networks you own or have explicit written permission to test. Unauthorized traffic analysis may be illegal.
+- **ARP spoofing alerts** — live host detection relies on ARP requests, which some network monitoring systems may flag as ARP spoofing activity. Confirm you're operating in an authorized environment before scanning.
 
-## Contact
+---
 
-For any queries or issues, feel free to reach out via GitHub Issues or email me at [vitalkarthikeyanmannuri@gmail.com].
+## 🩹 Troubleshooting
 
+| Issue | Fix |
+|---|---|
+| **Permission denied during capture** | Re-run with `sudo` (Linux/macOS) or as Administrator (Windows) |
+| **Missing dependency errors** | Re-run `pip install -r requirements.txt` and confirm your Python version |
+| **Interface not detected** | List available interfaces with `ifconfig` (Linux/macOS) or `ipconfig` (Windows) and match the exact name in `--i` |
 
+---
 
+## 🤝 Contributing
 
+Contributions are welcome via fork and pull request. Please ensure:
+
+- Code is clearly documented
+- New features include a usage example in the README
+- Changes are tested locally before submitting
+- Any new capability that touches live network traffic clearly notes its intended, authorized use case
+
+```bash
+git checkout -b feature/my-improvement
+# make your changes
+git commit -m "Add: description of change"
+git push origin feature/my-improvement
+```
+Then open a Pull Request describing what changed and why.
+
+---
+
+## ⚖️ Legal Disclaimer
+
+> The use of code contained in this repository, either in part or in its entirety, for engaging with targets **without prior, explicit mutual consent**, is **illegal**. It is the **end user's sole responsibility** to comply with all applicable local, state, and federal laws.
+>
+> The developers assume **no liability** and are **not responsible** for any misuse or damage caused by this code — whether accidental or intentional — including use by any threat actor or unauthorized party to compromise the security, privacy, confidentiality, integrity, or availability of systems or associated resources. **"Compromise"** here refers to exploitation of known or unknown vulnerabilities, including weaknesses in human- or electronically-enabled security controls.
+>
+> This tool is explicitly intended only for:
+> - **Educational environments**, for learning or teaching cybersecurity concepts, and
+> - **Authorized penetration testing engagements**, where the system owner has given explicit consent.
+>
+> The goal is to identify and mitigate vulnerabilities, not exploit them maliciously. **Before using this tool, obtain written authorization** and adhere to all relevant laws and ethical guidelines. Unauthorized use may result in severe legal consequences.
+
+---
+
+## 📄 License
+
+This project is released for **educational and authorized security-testing use only**. See the [Legal Disclaimer](#-legal-disclaimer) above for full terms of acceptable use. If you intend to distribute or reuse this code, retain this disclaimer in full.
+
+---
+
+## 🙏 Acknowledgements
+
+- [**Scapy**](https://scapy.net) — powerful packet crafting and sending functionality
+- **Python 3.x** — simplicity and flexibility for network programming
+- [**Wireshark**](https://www.wireshark.org) — trusted companion tool for analyzing exported PCAP files
+
+---
+
+## 📬 Contact
+
+Questions or issues? Open a [GitHub Issue](../../issues) or reach out directly at **vitalkarthikeyanmannuri@gmail.com**.
+
+<div align="center">
+
+Built for defenders — use it responsibly. 🛡️
+
+</div>
