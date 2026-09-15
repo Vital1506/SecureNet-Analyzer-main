@@ -1,19 +1,13 @@
-<div align="center">
-
-<img src="assets/banner-header.svg" width="100%"/>
+# SecureNet Analyzer
 
 <p>
 <img src="https://img.shields.io/badge/Python-3.x-6D28D9?style=for-the-badge&logo=python&logoColor=white&labelColor=1a1a2e"/>
 <img src="https://img.shields.io/badge/License-MIT-4C1D95?style=for-the-badge&labelColor=1a1a2e"/>
 <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-7C3AED?style=for-the-badge&labelColor=1a1a2e"/>
-</p>
-<p>
 <img src="https://img.shields.io/badge/⚠️_Authorized_Use_Only-Educational%20%26%20Pen--Testing-A21CAF?style=for-the-badge&labelColor=1a1a2e"/>
 </p>
 
-</div>
-
-<br/>
+**SecureNet Analyzer** is a Python-based network traffic monitoring, live-host detection, and packet analysis toolkit for network administrators, cybersecurity professionals, and penetration testers.
 
 > ⚠️ **Authorized use only.** This tool is intended strictly for educational environments and penetration testing engagements where you have **explicit written authorization**. See the [Legal Disclaimer](#-legal-disclaimer) before doing anything else.
 
@@ -329,12 +323,6 @@ This project is released under the **MIT License** for educational and authorize
 
 Questions or issues? Open a GitHub Issue or reach out at **vitalkarthikeyanmannuri@gmail.com**.
 
-<div align="center">
-
-<br/>
+---
 
 **Built for defenders — use it responsibly.**
-
-<img src="assets/banner-footer.svg" width="100%"/>
-
-</div>
