@@ -1,4 +1,6 @@
-# SecureNet Analyzer
+<div align="center">
+
+# 🛰️ SecureNet Analyzer
 
 <p>
 <img src="https://img.shields.io/badge/Python-3.x-6D28D9?style=for-the-badge&logo=python&logoColor=white&labelColor=1a1a2e"/>
