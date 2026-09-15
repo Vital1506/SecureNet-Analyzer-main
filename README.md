@@ -1,52 +1,14 @@
-<div align="center">
+# SecureNet Analyzer
 
-# 🛰️ SecureNet Analyzer
+**SecureNet Analyzer** is a Python-based network traffic monitoring, live-host detection, and packet analysis toolkit for network administrators, cybersecurity professionals, and penetration testers.
 
-**A Python-based network traffic monitoring, live-host detection, and packet analysis toolkit**
+> ⚠️ **Authorized use only.** This tool is intended strictly for educational environments and penetration testing engagements where you have **explicit written authorization**. See the [Legal Disclaimer](#legal-disclaimer) before doing anything else.
 
-[![Python Version](https://img.shields.io/badge/python-3.x-blue?logo=python&style=flat-square)](https://www.python.org)
-[![Scapy](https://img.shields.io/badge/built%20with-Scapy-critical?style=flat-square)](https://scapy.net)
-[![License](https://img.shields.io/badge/license-Educational%20%2F%20Authorized%20Use%20Only-important?style=flat-square)](#-license)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](#-contributing)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey?style=flat-square)](#-requirements)
-
-[Features](#-features) •
-[Installation](#-installation) •
-[Usage](#-usage-examples) •
-[Security](#-security-considerations) •
-[Legal](#-legal-disclaimer)
-
-</div>
-
-> ⚠️ **Authorized use only.** This tool is intended strictly for educational environments and penetration testing engagements where you have **explicit written authorization**. See the [Legal Disclaimer](#-legal-disclaimer) before doing anything else.
+[Features](#features) • [Requirements](#requirements) • [Installation](#installation) • [Usage](#usage) • [Security Considerations](#security-considerations) • [Troubleshooting](#troubleshooting) • [Legal Disclaimer](#legal-disclaimer)
 
 ---
 
-## 📖 Overview
-
-**SecureNet Analyzer** captures and analyzes network traffic, detects live devices on a network, and helps surface potential vulnerabilities and unusual traffic patterns. Built on the [**Scapy**](https://scapy.net) packet-crafting library, it combines real-time packet analysis, ARP-based live host detection, custom packet construction, and secure credential handling into a single CLI toolkit.
-
-It's aimed at **network administrators**, **cybersecurity professionals**, and **penetration testers** who need a lightweight, scriptable way to inspect traffic and enumerate devices during authorized assessments.
-
----
-
-## 📑 Table of Contents
-
-1. [Features](#-features)
-2. [Requirements](#-requirements)
-3. [Installation](#-installation)
-4. [Usage Examples](#-usage-examples)
-5. [Security Considerations](#-security-considerations)
-6. [Troubleshooting](#-troubleshooting)
-7. [Contributing](#-contributing)
-8. [Legal Disclaimer](#-legal-disclaimer)
-9. [License](#-license)
-10. [Acknowledgements](#-acknowledgements)
-11. [Contact](#-contact)
-
----
-
-## ✨ Features
+## Features
 
 | Capability | Description |
 |---|---|
@@ -54,38 +16,38 @@ It's aimed at **network administrators**, **cybersecurity professionals**, and *
 | 🔍 **Live Host Detection** | Enumerate live devices via ARP requests, mapping IP, MAC address, and NIC vendor |
 | 🛠 **Custom Packet Crafting** | Build and send custom packets for controlled network testing and assessment |
 | 🔐 **SHA-256 Authentication** | User login secured with SHA-256 password hashing — no plaintext credential storage |
-| 💾 **Data Export** | Export captured traffic to **PCAP** or **TXT** for further analysis (e.g., in Wireshark) |
+| 💾 **Data Export** | Export captured traffic to **PCAP**, **TXT**, or **HTML** for further analysis (e.g., in Wireshark) |
 | 🚨 **Vulnerability Signal Detection** | Flag unusual traffic patterns that may indicate security issues |
+| 📋 **Local IP Blocklist** | Track and flag known-bad IPs; blocklist hits influence risk scoring |
+| 🔥 **Real Firewall Blocking (Windows)** | Enforce the local blocklist by creating Windows Firewall block rules (inbound + outbound) for each blocked IP |
+| 📡 **Threat Intel Ingestion** | Load STIX2 bundles, extract IPv4/IPv6 IOCs, and optionally auto-add them to the blocklist |
+| 🚨 **Risk-Threshold Alerting** | Trigger an alert (stdout / file / exit code) when the risk score crosses a threshold |
 
 ---
 
-## 🧰 Requirements
+## Requirements
 
 | Requirement | Notes |
 |---|---|
 | **Python 3.x** | Required to run the tool |
 | **Scapy** | Core dependency for packet crafting and capture |
-| **Administrator / root privileges** | Required for raw packet capture on any OS |
+| **mac-vendor-lookup** | MAC address OUI → vendor name lookup |
+| **colorama** | Terminal color output (pip installs it with requirements) |
+| **Administrator / root privileges** | Required for raw packet capture **and** for firewall block enforcement on Windows |
 
 All Python dependencies are pinned in [`requirements.txt`](requirements.txt).
 
 ---
 
-## ⚙️ Installation
+## Installation
 
-### 1. Clone the repository
-```bash
-git clone https://github.com/<your-username>/SecureNet-Analyzer.git
-cd SecureNet-Analyzer
-```
-
-### 2. Install dependencies
+### 1. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Run with elevated privileges
-Packet capture requires raw socket access, so the tool must run with elevated permissions:
+### 2. Run with elevated privileges
+Packet capture requires raw socket access, and firewall block enforcement requires Administrator rights, so the tool must run with elevated permissions when using those features.
 
 **Linux / macOS:**
 ```bash
@@ -98,63 +60,161 @@ Run Command Prompt or PowerShell **as Administrator**, then:
 python Main.py [option] [arguments]
 ```
 
+### 3. First-run setup
+On first run, the tool prompts you to set a login password. The password is hashed with SHA-256 and stored in `password_hash.txt`. Every subsequent run requires login before any network operation.
+
+For automation or non-interactive use (e.g., blocklist management in scripts), pass `--offline` to skip the login prompt:
+```bash
+python Main.py block --list-blocks --offline
+```
+
 ---
 
-## 🖥 Usage Examples
+## Usage
 
-SecureNet Analyzer is driven entirely through the CLI.
+SecureNet Analyzer is driven entirely through the CLI. The first positional argument selects the **mode**: `c` (capture), `lh` (live-host detection), `block` (blocklist management), `block-activate`, `block-deactivate`, `block-status`, or `intel`.
 
-### Primary Options
+### Primary modes
+| Mode | Description |
+|---|---|
+| `c` | Start packet capture and analysis |
+| `lh` | Perform live host detection on the network |
+| `block` | Manage the local IP blocklist |
+| `block-activate` | Enforce the local blocklist via Windows Firewall rules |
+| `block-deactivate` | Remove Windows Firewall block rules created by this tool |
+| `block-status` | Show current firewall block state and cross-check against the local blocklist |
+| `intel` | Load a STIX2 threat-intel bundle, extract IOCs, and optionally add them to the blocklist |
+
+### Common arguments
 | Flag | Description |
 |---|---|
-| `-c`, `--capture` | Start packet capture and analysis |
-| `-lh`, `--live-host` | Perform live host detection on the network |
-
-### Common Arguments
-| Flag | Description |
-|---|---|
-| `--i [interface]` | Network interface to capture from (e.g. `eth0`, `Wi-Fi`) |
-| `--pc [number]` | Number of packets to capture |
+| `--i [interface]` | Network interface to capture from (e.g. `WiFi`, `eth0`). |
+| `--pc [number]` | Number of packets to capture (required for capture mode unless using blocklist flags) |
 | `--a` | Analyze captured packets in real time |
 | `--s` | Save captured packets |
-| `--p [filename]` | Save captured packets in PCAP format |
-| `--t [filename]` | Save captured packets in TXT format |
-| `--f [filter]` | Filter expression (e.g. `'src host 192.168.1.1 and tcp'`) |
+| `--p [filename]` | Save captured packets in **PCAP** format |
+| `--t [filename]` | Save captured packets in **TXT** format |
+| `--html [filename]` | Save captured packets in **HTML** executive report format |
+| `--summary` | Print a concise security summary after capture |
+| `--f [filter]` | Filter expression (see [Filter syntax](#filter-syntax)) |
 | `--ip [address]` | Target IP address for live host detection |
+| `--block [ip]` | Add an IP address to the local blocklist |
+| `--unblock [ip]` | Remove an IP address from the local blocklist |
+| `--list-blocks` | Show all blocked IPs in the local blocklist |
+| `--clear-blocks` | Clear the local blocklist |
+| `--offline` | Skip the login prompt (for automation / non-interactive use) |
+| `--dry-run` | Simulate firewall blocking without creating real rules (block-activate mode) |
+| `--timeout [seconds]` | ARP scan timeout (live-host mode, default 5) |
+| `--max-hosts [n]` | Maximum hosts to report (live-host mode, default 254) |
+| `--intel-source [path]` | Path to a STIX2 JSON bundle, or `sample` for the bundled sample |
+| `--intel-auto-block` | Add discovered IP IOCs to the local blocklist (intel mode) |
+| `--alert-on [score]` | Trigger an alert action when risk score reaches this threshold (capture mode) |
+| `--alert-file [path]` | Append threshold alerts to this file (capture mode) |
+| `--alert-exit` | Exit with code 2 when the threshold is crossed (capture mode) |
 
-### Example 1 — Capture & save traffic
-```bash
-python Main.py -c --i Wi-Fi --pc 10 --a --s --p captured_traffic.pcap
-```
-Captures 10 packets on the `Wi-Fi` interface, analyzes them in real time, and saves the result as a PCAP file.
+### Filter syntax
+Filters are case-insensitive and joined with `and`. Supported clauses:
 
-### Example 2 — Live host detection
-```bash
-python Main.py -lh --ip 192.168.1.1
+- `src host <ip>` / `dst host <ip>` — source or destination IP (IPv4 or IPv6)
+- `src port <n>` / `dst port <n>` — source or destination TCP/UDP port
+- `tcp` / `udp` / `icmp` / `icmp6` / `ip` / `ipv6` — protocol
+
+Examples:
 ```
-Sends ARP requests to identify live devices on the `192.168.1.0/24` network reachable from `192.168.1.1`.
+src host 10.0.0.1 and dst port 80
+tcp and dst host 192.168.1.10
+udp and src port 53
+dst port 443 and src host 10.0.0.2
+icmp
+```
+
+### Example 1 — Capture, analyze, and save in multiple formats
+```bash
+python Main.py c --i WiFi --pc 50 --a --summary --s --p captured_traffic.pcap --t report.txt --html report.html
+```
+Captures 50 packets on the `WiFi` interface, analyzes them in real time, prints a security summary, and saves three outputs: a PCAP (Wireshark-compatible), a TXT report, and an HTML executive report.
+
+### Example 2 — Capture with filtering and threshold alerting
+```bash
+python Main.py c --pc 100 --f "tcp and dst port 22" --summary --a --alert-on 50 --alert-file alerts.log --alert-exit
+```
+Captures 100 TCP packets destined for port 22 (SSH), analyzes them, prints a summary, and exits with code 2 (or appends to `alerts.log`) if the risk score reaches 50.
+
+### Example 3 — Live host detection
+```bash
+python Main.py lh --ip 192.168.1.10 --timeout 3 --max-hosts 50
+```
+Sends ARP requests to identify live devices on the `192.168.1.0/24` network reachable from `192.168.1.10`, with a 3-second timeout and at most 50 hosts reported.
+
+### Example 4 — Blocklist management
+```bash
+# Add IPs to the local blocklist
+python Main.py block --block 10.0.0.5 --block 192.168.1.99 --offline
+
+# List blocked IPs
+python Main.py block --list-blocks --offline
+
+# Remove an IP
+python Main.py block --unblock 10.0.0.5 --offline
+
+# Clear the entire blocklist
+python Main.py block --clear-blocks --offline
+```
+
+Blocked IPs are persisted in `blocked_ips.txt` and factored into risk scoring during capture analysis.
+
+### Example 5 — Enforce blocked IPs via Windows Firewall
+```bash
+# Dry-run first: see what rules would be created without touching the firewall
+python Main.py block-activate --dry-run --offline
+
+# Actually enforce the blocklist (requires Administrator)
+python Main.py block-activate --offline
+
+# Check current firewall block state
+python Main.py block-status --offline
+
+# Remove the firewall block rules
+python Main.py block-deactivate --offline
+```
+
+`block-activate` creates one inbound and one outbound Windows Firewall block rule per blocked IP (`SecureNet_Block_In_<ip>` and `SecureNet_Block_Out_<ip>`). Invalid IPs in the blocklist are skipped. Use `--dry-run` to preview without creating real rules.
+
+### Example 6 — Threat intel ingestion
+```bash
+# Use the bundled sample bundle (offline, no network)
+python Main.py intel --intel-source sample --offline
+
+# Load your own STIX2 bundle and auto-add its IP IOCs to the blocklist
+python Main.py intel --intel-source my_threats.stix2.json --intel-auto-block --offline
+```
+
+The `intel` mode loads a STIX2 JSON bundle, extracts IPv4/IPv6 indicators, prints a summary, and optionally adds valid IP IOCs to the local blocklist. Non-IP indicators (file hashes, URLs, etc.) are counted but not added.
 
 ---
 
-## 🔒 Security Considerations
+## Security Considerations
 
 - **Password storage** — credentials are hashed with SHA-256 and never stored in plaintext.
 - **Authorized networks only** — only run this tool on networks you own or have explicit written permission to test. Unauthorized traffic analysis may be illegal.
-- **ARP spoofing alerts** — live host detection relies on ARP requests, which some network monitoring systems may flag as ARP spoofing activity. Confirm you're operating in an authorized environment before scanning.
+- **ARP scanning alerts** — live host detection relies on ARP requests, which some network monitoring systems may flag as ARP spoofing activity. Confirm you're operating in an authorized environment before scanning.
+- **Blocklist is local/analytical** — the blocklist flags and scores traffic but does not drop or block packets at the network level.
 
 ---
 
-## 🩹 Troubleshooting
+## Troubleshooting
 
 | Issue | Fix |
 |---|---|
 | **Permission denied during capture** | Re-run with `sudo` (Linux/macOS) or as Administrator (Windows) |
 | **Missing dependency errors** | Re-run `pip install -r requirements.txt` and confirm your Python version |
-| **Interface not detected** | List available interfaces with `ifconfig` (Linux/macOS) or `ipconfig` (Windows) and match the exact name in `--i` |
+| **Interface not found** | List available interfaces by running `python Main.py c --help` (the `--i` description notes how to find them) or use `ifconfig` (Linux/macOS) / `ipconfig` (Windows) and match the exact name in `--i` |
+| **No packets captured** | Confirm the interface is up and traffic is flowing; try a larger `--pc` value |
+| **Login prompt in automation** | Add `--offline` to skip the interactive login |
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome via fork and pull request. Please ensure:
 
@@ -173,7 +233,7 @@ Then open a Pull Request describing what changed and why.
 
 ---
 
-## ⚖️ Legal Disclaimer
+## Legal Disclaimer
 
 > The use of code contained in this repository, either in part or in its entirety, for engaging with targets **without prior, explicit mutual consent**, is **illegal**. It is the **end user's sole responsibility** to comply with all applicable local, state, and federal laws.
 >
@@ -187,26 +247,25 @@ Then open a Pull Request describing what changed and why.
 
 ---
 
-## 📄 License
+## License
 
-This project is released for **educational and authorized security-testing use only**. See the [Legal Disclaimer](#-legal-disclaimer) above for full terms of acceptable use. If you intend to distribute or reuse this code, retain this disclaimer in full.
+This project is released under the **MIT License** for educational and authorized security-testing use. See the [Legal Disclaimer](#legal-disclaimer) above for full terms of acceptable use. If you intend to distribute or reuse this code, retain this disclaimer in full.
 
 ---
 
-## 🙏 Acknowledgements
+## Acknowledgements
 
 - [**Scapy**](https://scapy.net) — powerful packet crafting and sending functionality
+- **mac-vendor-lookup** — MAC address OUI to vendor name lookup
 - **Python 3.x** — simplicity and flexibility for network programming
 - [**Wireshark**](https://www.wireshark.org) — trusted companion tool for analyzing exported PCAP files
 
 ---
 
-## 📬 Contact
+## Contact
 
-Questions or issues? Open a [GitHub Issue](../../issues) or reach out directly at **vitalkarthikeyanmannuri@gmail.com**.
+Questions or issues? Open a GitHub Issue or reach out at **vitalkarthikeyanmannuri@gmail.com**.
 
-<div align="center">
+---
 
-Built for defenders — use it responsibly. 🛡️
-
-</div>
+**Built for defenders — use it responsibly.**
