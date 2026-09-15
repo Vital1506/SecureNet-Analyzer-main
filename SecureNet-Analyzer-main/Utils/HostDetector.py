@@ -10,7 +10,7 @@ def get_mac_vendor(mac):
         return "Unknown"
 
 
-def detect_live_hosts(local_ip):
+def detect_live_hosts(local_ip, timeout=5, max_hosts=254):
     network = ipaddress.IPv4Network(f"{local_ip}/24", strict=False)
     target_ip = f"{network.network_address}/24"
 
@@ -18,10 +18,12 @@ def detect_live_hosts(local_ip):
     arp = ARP(pdst=target_ip)
     packet = ethernet / arp
 
-    result = srp(packet, timeout=5, verbose=False)[0]
+    result = srp(packet, timeout=timeout, verbose=False)[0]
     live_hosts = []
 
     for sent, received in result:
+        if len(live_hosts) >= max_hosts:
+            break
         host_info = {
             "ip": received.psrc,
             "mac": received.hwsrc,
@@ -29,9 +31,10 @@ def detect_live_hosts(local_ip):
         }
         live_hosts.append(host_info)
 
+    print(f"\nLive Host Scan — target: {target_ip} | timeout: {timeout}s | max hosts: {max_hosts}")
     if live_hosts:
-        print("\nLive Hosts:")
+        print(f"Live hosts found: {len(live_hosts)}")
         for host in live_hosts:
-            print(f"IP: {host['ip']} | MAC: {host['mac']} | Vendor: {host['vendor']}")
+            print(f"  IP: {host['ip']} | MAC: {host['mac']} | Vendor: {host['vendor']}")
     else:
         print("No live hosts found.")
