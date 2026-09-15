@@ -1,0 +1,18 @@
+# Local runtime data — never commit
+blocked_ips.txt
+password_hash.txt
+
+# Generated reports / exports — treat as local output
+*.pcap
+report.txt
+report_upgrade.txt
+report_upgrade.html
+demo_report.txt
+final_demo_report.txt
+security_report_demo.txt
+security_report_demo.html
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo

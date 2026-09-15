@@ -1,0 +1,62 @@
+{
+  "type": "bundle",
+  "id": "bundle--00000000-0000-0000-0000-000000000001",
+  "spec_version": "2.1",
+  "objects": [
+    {
+      "type": "indicator",
+      "id": "indicator--1",
+      "created": "2026-09-15T00:00:00.000Z",
+      "modified": "2026-09-15T00:00:00.000Z",
+      "name": "Known-malicious IPv4 host",
+      "pattern": "[ipv4-addr:value = '198.51.100.10']",
+      "pattern_type": "stix",
+      "valid_from": "2026-09-15T00:00:00.000Z",
+      "labels": ["malicious-activity"]
+    },
+    {
+      "type": "indicator",
+      "id": "indicator--2",
+      "created": "2026-09-15T00:00:00.000Z",
+      "modified": "2026-09-15T00:00:00.000Z",
+      "name": "Another suspicious IPv4 host",
+      "pattern": "[ipv4-addr:value = '203.0.113.25']",
+      "pattern_type": "stix",
+      "valid_from": "2026-09-15T00:00:00.000Z",
+      "labels": ["command-and-control"]
+    },
+    {
+      "type": "indicator",
+      "id": "indicator--3",
+      "created": "2026-09-15T00:00:00.000Z",
+      "modified": "2026-09-15T00:00:00.000Z",
+      "name": "IPv6 C2 candidate",
+      "pattern": "[ipv6-addr:value = 'gggg::1']",
+      "pattern_type": "stix",
+      "valid_from": "2026-09-15T00:00:00.000Z",
+      "labels": ["command-and-control"]
+    },
+    {
+      "type": "indicator",
+      "id": "indicator--4",
+      "created": "2026-09-15T00:00:00.000Z",
+      "modified": "2026-09-15T00:00:00.000Z",
+      "name": "File hash indicator (not added to blocklist)",
+      "pattern": "[file:hashes.MD5 = 'd41d8cd98f00b204e9800998ecf8427e']",
+      "pattern_type": "stix",
+      "valid_from": "2026-09-15T00:00:00.000Z",
+      "labels": ["malware"]
+    },
+    {
+      "type": "indicator",
+      "id": "indicator--5",
+      "created": "2026-09-15T00:00:00.000Z",
+      "modified": "2026-09-15T00:00:00.000Z",
+      "name": "URL indicator (not added to blocklist)",
+      "pattern": "[url:value = 'https://example.com/malicious']",
+      "pattern_type": "stix",
+      "valid_from": "2026-09-15T00:00:00.000Z",
+      "labels": ["phishing"]
+    }
+  ]
+}
