@@ -1,14 +1,31 @@
-# SecureNet Analyzer
+<div align="center">
 
-**SecureNet Analyzer** is a Python-based network traffic monitoring, live-host detection, and packet analysis toolkit for network administrators, cybersecurity professionals, and penetration testers.
+<img src="assets/banner-header.svg" width="100%"/>
 
-> ⚠️ **Authorized use only.** This tool is intended strictly for educational environments and penetration testing engagements where you have **explicit written authorization**. See the [Legal Disclaimer](#legal-disclaimer) before doing anything else.
+<p>
+<img src="https://img.shields.io/badge/Python-3.x-6D28D9?style=for-the-badge&logo=python&logoColor=white&labelColor=1a1a2e"/>
+<img src="https://img.shields.io/badge/License-MIT-4C1D95?style=for-the-badge&labelColor=1a1a2e"/>
+<img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-7C3AED?style=for-the-badge&labelColor=1a1a2e"/>
+</p>
+<p>
+<img src="https://img.shields.io/badge/⚠️_Authorized_Use_Only-Educational%20%26%20Pen--Testing-A21CAF?style=for-the-badge&labelColor=1a1a2e"/>
+</p>
 
-[Features](#features) • [Requirements](#requirements) • [Installation](#installation) • [Usage](#usage) • [Security Considerations](#security-considerations) • [Troubleshooting](#troubleshooting) • [Legal Disclaimer](#legal-disclaimer)
+</div>
+
+<br/>
+
+> ⚠️ **Authorized use only.** This tool is intended strictly for educational environments and penetration testing engagements where you have **explicit written authorization**. See the [Legal Disclaimer](#-legal-disclaimer) before doing anything else.
+
+<div align="center">
+
+[**Features**](#-features) • [**Requirements**](#-requirements) • [**Installation**](#-installation) • [**Usage**](#-usage) • [**Security Considerations**](#-security-considerations) • [**Troubleshooting**](#-troubleshooting) • [**Legal Disclaimer**](#-legal-disclaimer)
+
+</div>
 
 ---
 
-## Features
+## 🟣 Features
 
 | Capability | Description |
 |---|---|
@@ -25,7 +42,7 @@
 
 ---
 
-## Requirements
+## 🟣 Requirements
 
 | Requirement | Notes |
 |---|---|
@@ -39,28 +56,37 @@ All Python dependencies are pinned in [`requirements.txt`](requirements.txt).
 
 ---
 
-## Installation
+## 🟣 Installation
 
-### 1. Install dependencies
+**1. Install dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Run with elevated privileges
+**2. Run with elevated privileges**
+
 Packet capture requires raw socket access, and firewall block enforcement requires Administrator rights, so the tool must run with elevated permissions when using those features.
 
-**Linux / macOS:**
+<table>
+<tr><td>
+
+**Linux / macOS**
 ```bash
 sudo python3 Main.py [option] [arguments]
 ```
 
-**Windows:**
-Run Command Prompt or PowerShell **as Administrator**, then:
+</td><td>
+
+**Windows** *(as Administrator)*
 ```bash
 python Main.py [option] [arguments]
 ```
 
-### 3. First-run setup
+</td></tr>
+</table>
+
+**3. First-run setup**
+
 On first run, the tool prompts you to set a login password. The password is hashed with SHA-256 and stored in `password_hash.txt`. Every subsequent run requires login before any network operation.
 
 For automation or non-interactive use (e.g., blocklist management in scripts), pass `--offline` to skip the login prompt:
@@ -70,11 +96,12 @@ python Main.py block --list-blocks --offline
 
 ---
 
-## Usage
+## 🟣 Usage
 
 SecureNet Analyzer is driven entirely through the CLI. The first positional argument selects the **mode**: `c` (capture), `lh` (live-host detection), `block` (blocklist management), `block-activate`, `block-deactivate`, `block-status`, or `intel`.
 
 ### Primary modes
+
 | Mode | Description |
 |---|---|
 | `c` | Start packet capture and analysis |
@@ -86,9 +113,10 @@ SecureNet Analyzer is driven entirely through the CLI. The first positional argu
 | `intel` | Load a STIX2 threat-intel bundle, extract IOCs, and optionally add them to the blocklist |
 
 ### Common arguments
+
 | Flag | Description |
 |---|---|
-| `--i [interface]` | Network interface to capture from (e.g. `WiFi`, `eth0`). |
+| `--i [interface]` | Network interface to capture from (e.g. `WiFi`, `eth0`) |
 | `--pc [number]` | Number of packets to capture (required for capture mode unless using blocklist flags) |
 | `--a` | Analyze captured packets in real time |
 | `--s` | Save captured packets |
@@ -113,14 +141,14 @@ SecureNet Analyzer is driven entirely through the CLI. The first positional argu
 | `--alert-exit` | Exit with code 2 when the threshold is crossed (capture mode) |
 
 ### Filter syntax
+
 Filters are case-insensitive and joined with `and`. Supported clauses:
 
 - `src host <ip>` / `dst host <ip>` — source or destination IP (IPv4 or IPv6)
 - `src port <n>` / `dst port <n>` — source or destination TCP/UDP port
 - `tcp` / `udp` / `icmp` / `icmp6` / `ip` / `ipv6` — protocol
 
-Examples:
-```
+```text
 src host 10.0.0.1 and dst port 80
 tcp and dst host 192.168.1.10
 udp and src port 53
@@ -128,25 +156,45 @@ dst port 443 and src host 10.0.0.2
 icmp
 ```
 
-### Example 1 — Capture, analyze, and save in multiple formats
+### Examples
+
+<details>
+<summary><b>1. Capture, analyze, and save in multiple formats</b></summary>
+<br/>
+
 ```bash
 python Main.py c --i WiFi --pc 50 --a --summary --s --p captured_traffic.pcap --t report.txt --html report.html
 ```
 Captures 50 packets on the `WiFi` interface, analyzes them in real time, prints a security summary, and saves three outputs: a PCAP (Wireshark-compatible), a TXT report, and an HTML executive report.
 
-### Example 2 — Capture with filtering and threshold alerting
+</details>
+
+<details>
+<summary><b>2. Capture with filtering and threshold alerting</b></summary>
+<br/>
+
 ```bash
 python Main.py c --pc 100 --f "tcp and dst port 22" --summary --a --alert-on 50 --alert-file alerts.log --alert-exit
 ```
 Captures 100 TCP packets destined for port 22 (SSH), analyzes them, prints a summary, and exits with code 2 (or appends to `alerts.log`) if the risk score reaches 50.
 
-### Example 3 — Live host detection
+</details>
+
+<details>
+<summary><b>3. Live host detection</b></summary>
+<br/>
+
 ```bash
 python Main.py lh --ip 192.168.1.10 --timeout 3 --max-hosts 50
 ```
 Sends ARP requests to identify live devices on the `192.168.1.0/24` network reachable from `192.168.1.10`, with a 3-second timeout and at most 50 hosts reported.
 
-### Example 4 — Blocklist management
+</details>
+
+<details>
+<summary><b>4. Blocklist management</b></summary>
+<br/>
+
 ```bash
 # Add IPs to the local blocklist
 python Main.py block --block 10.0.0.5 --block 192.168.1.99 --offline
@@ -160,10 +208,14 @@ python Main.py block --unblock 10.0.0.5 --offline
 # Clear the entire blocklist
 python Main.py block --clear-blocks --offline
 ```
-
 Blocked IPs are persisted in `blocked_ips.txt` and factored into risk scoring during capture analysis.
 
-### Example 5 — Enforce blocked IPs via Windows Firewall
+</details>
+
+<details>
+<summary><b>5. Enforce blocked IPs via Windows Firewall</b></summary>
+<br/>
+
 ```bash
 # Dry-run first: see what rules would be created without touching the firewall
 python Main.py block-activate --dry-run --offline
@@ -177,10 +229,14 @@ python Main.py block-status --offline
 # Remove the firewall block rules
 python Main.py block-deactivate --offline
 ```
-
 `block-activate` creates one inbound and one outbound Windows Firewall block rule per blocked IP (`SecureNet_Block_In_<ip>` and `SecureNet_Block_Out_<ip>`). Invalid IPs in the blocklist are skipped. Use `--dry-run` to preview without creating real rules.
 
-### Example 6 — Threat intel ingestion
+</details>
+
+<details>
+<summary><b>6. Threat intel ingestion</b></summary>
+<br/>
+
 ```bash
 # Use the bundled sample bundle (offline, no network)
 python Main.py intel --intel-source sample --offline
@@ -188,12 +244,13 @@ python Main.py intel --intel-source sample --offline
 # Load your own STIX2 bundle and auto-add its IP IOCs to the blocklist
 python Main.py intel --intel-source my_threats.stix2.json --intel-auto-block --offline
 ```
-
 The `intel` mode loads a STIX2 JSON bundle, extracts IPv4/IPv6 indicators, prints a summary, and optionally adds valid IP IOCs to the local blocklist. Non-IP indicators (file hashes, URLs, etc.) are counted but not added.
+
+</details>
 
 ---
 
-## Security Considerations
+## 🟣 Security Considerations
 
 - **Password storage** — credentials are hashed with SHA-256 and never stored in plaintext.
 - **Authorized networks only** — only run this tool on networks you own or have explicit written permission to test. Unauthorized traffic analysis may be illegal.
@@ -202,7 +259,7 @@ The `intel` mode loads a STIX2 JSON bundle, extracts IPv4/IPv6 indicators, print
 
 ---
 
-## Troubleshooting
+## 🟣 Troubleshooting
 
 | Issue | Fix |
 |---|---|
@@ -214,7 +271,7 @@ The `intel` mode loads a STIX2 JSON bundle, extracts IPv4/IPv6 indicators, print
 
 ---
 
-## Contributing
+## 🟣 Contributing
 
 Contributions are welcome via fork and pull request. Please ensure:
 
@@ -233,7 +290,7 @@ Then open a Pull Request describing what changed and why.
 
 ---
 
-## Legal Disclaimer
+## 🟣 Legal Disclaimer
 
 > The use of code contained in this repository, either in part or in its entirety, for engaging with targets **without prior, explicit mutual consent**, is **illegal**. It is the **end user's sole responsibility** to comply with all applicable local, state, and federal laws.
 >
@@ -247,13 +304,19 @@ Then open a Pull Request describing what changed and why.
 
 ---
 
-## License
+## 🟣 License
 
-This project is released under the **MIT License** for educational and authorized security-testing use. See the [Legal Disclaimer](#legal-disclaimer) above for full terms of acceptable use. If you intend to distribute or reuse this code, retain this disclaimer in full.
+This project is released under the **MIT License** for educational and authorized security-testing use. See the [Legal Disclaimer](#-legal-disclaimer) above for full terms of acceptable use. If you intend to distribute or reuse this code, retain this disclaimer in full.
 
 ---
 
-## Acknowledgements
+## 🟣 Acknowledgements
+
+<p>
+<img src="https://img.shields.io/badge/Scapy-Packet%20Engine-6D28D9?style=for-the-badge&labelColor=1a1a2e"/>
+<img src="https://img.shields.io/badge/mac--vendor--lookup-OUI%20Lookup-4C1D95?style=for-the-badge&labelColor=1a1a2e"/>
+<img src="https://img.shields.io/badge/Wireshark-PCAP%20Analysis-1679A7?style=for-the-badge&logo=wireshark&logoColor=white&labelColor=1a1a2e"/>
+</p>
 
 - [**Scapy**](https://scapy.net) — powerful packet crafting and sending functionality
 - **mac-vendor-lookup** — MAC address OUI to vendor name lookup
@@ -262,10 +325,16 @@ This project is released under the **MIT License** for educational and authorize
 
 ---
 
-## Contact
+## 🟣 Contact
 
 Questions or issues? Open a GitHub Issue or reach out at **vitalkarthikeyanmannuri@gmail.com**.
 
----
+<div align="center">
+
+<br/>
 
 **Built for defenders — use it responsibly.**
+
+<img src="assets/banner-footer.svg" width="100%"/>
+
+</div>
