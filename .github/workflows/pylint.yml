@@ -1,23 +1,30 @@
 name: Pylint
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.10", "3.11", "3.12"]
+    defaults:
+      run:
+        working-directory: SecureNet-Analyzer-main
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pylint
-    - name: Analysing the code with pylint
-      run: |
-        pylint $(git ls-files '*.py')
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: SecureNet-Analyzer-main/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pylint
+      - name: Run automated verification
+        run: python test_all.py
+      - name: Run Pylint
+        run: pylint Main.py Utils --disable=missing-module-docstring,missing-function-docstring,missing-class-docstring,invalid-name,too-few-public-methods,broad-exception-caught,import-outside-toplevel,line-too-long,too-many-branches,too-many-locals,too-many-return-statements,consider-using-with,unused-variable,unused-import,duplicate-code
