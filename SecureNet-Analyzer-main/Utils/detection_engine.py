@@ -125,40 +125,52 @@ def detect_horizontal_syn_scans(packets):
     findings = []
     for src, source_events in groups.items():
         source_events.sort(key=lambda item: item["epoch"])
-        for start, start_event in enumerate(source_events):
-            window = []
-            start_time = start_event["epoch"]
-            for event in source_events[start:]:
-                if event["epoch"] - start_time > rule["window_seconds"]:
-                    break
-                window.append(event)
+        left = 0
+        destination_counts = defaultdict(int)
 
-            unique_destinations = sorted({event["dst"] for event in window})
-            if len(window) < rule["min_syn_packets"]:
-                continue
-            if len(unique_destinations) < rule["min_unique_destinations"]:
+        for right, event in enumerate(source_events):
+            destination_counts[event["dst"]] += 1
+
+            while (
+                left <= right
+                and event["epoch"] - source_events[left]["epoch"] > rule["window_seconds"]
+            ):
+                old_dst = source_events[left]["dst"]
+                destination_counts[old_dst] -= 1
+                if destination_counts[old_dst] == 0:
+                    del destination_counts[old_dst]
+                left += 1
+
+            window_size = right - left + 1
+            if (
+                window_size < rule["min_syn_packets"]
+                or len(destination_counts) < rule["min_unique_destinations"]
+            ):
                 continue
 
+            window = source_events[left:right + 1]
             first_event = window[0]
             last_event = window[-1]
+            unique_destinations = sorted(destination_counts)
             confidence = min(
                 0.99,
                 0.55
-                + 0.02 * (len(window) - rule["min_syn_packets"])
-                + 0.02 * (len(unique_destinations) - rule["min_unique_destinations"]),
+                + 0.02 * (window_size - rule["min_syn_packets"])
+                + 0.025 * (
+                    len(unique_destinations) - rule["min_unique_destinations"]
+                ),
             )
             finding = _base_finding(
                 "NET-SCAN-001",
                 rule,
                 first_event,
                 last_event,
-                [event["packet"] for event in window],
+                [item["packet"] for item in window],
             )
             finding["confidence"] = round(confidence, 2)
             finding["destination_ips"] = unique_destinations
-            finding["destination_ports"] = sorted({event["dport"] for event in window})
             finding["observations"] = [
-                f"{len(window)} TCP SYN packets observed from {src}",
+                f"{window_size} TCP SYN packets observed from {src}",
                 f"{len(unique_destinations)} unique destinations observed",
                 f"activity occurred within {round(last_event['epoch'] - first_event['epoch'], 2)} seconds",
             ]
@@ -166,8 +178,6 @@ def detect_horizontal_syn_scans(packets):
             break
 
     return findings
-
-
 def detect_vertical_syn_scans(packets):
     rule = DEFAULT_RULES["NET-SCAN-002"]
     events = [_network_info(packet, i) for i, packet in enumerate(packets, 1)]
@@ -187,40 +197,53 @@ def detect_vertical_syn_scans(packets):
     findings = []
     for (src, dst), pair_events in groups.items():
         pair_events.sort(key=lambda item: item["epoch"])
-        for start, start_event in enumerate(pair_events):
-            window = []
-            start_time = start_event["epoch"]
-            for event in pair_events[start:]:
-                if event["epoch"] - start_time > rule["window_seconds"]:
-                    break
-                window.append(event)
+        left = 0
+        port_counts = defaultdict(int)
 
-            unique_ports = sorted({event["dport"] for event in window})
-            if len(window) < rule["min_syn_packets"]:
-                continue
-            if len(unique_ports) < rule["min_unique_ports"]:
+        for right, event in enumerate(pair_events):
+            port_counts[event["dport"]] += 1
+
+            while (
+                left <= right
+                and event["epoch"] - pair_events[left]["epoch"] > rule["window_seconds"]
+            ):
+                old_port = pair_events[left]["dport"]
+                port_counts[old_port] -= 1
+                if port_counts[old_port] == 0:
+                    del port_counts[old_port]
+                left += 1
+
+            window_size = right - left + 1
+            if (
+                window_size < rule["min_syn_packets"]
+                or len(port_counts) < rule["min_unique_ports"]
+            ):
                 continue
 
+            window = pair_events[left:right + 1]
             first_event = window[0]
             last_event = window[-1]
+            unique_ports = sorted(port_counts)
             confidence = min(
                 0.99,
                 0.55
-                + 0.02 * (len(window) - rule["min_syn_packets"])
-                + 0.025 * (len(unique_ports) - rule["min_unique_ports"]),
+                + 0.02 * (window_size - rule["min_syn_packets"])
+                + 0.025 * (
+                    len(unique_ports) - rule["min_unique_ports"]
+                ),
             )
             finding = _base_finding(
                 "NET-SCAN-002",
                 rule,
                 first_event,
                 last_event,
-                [event["packet"] for event in window],
+                [item["packet"] for item in window],
             )
             finding["confidence"] = round(confidence, 2)
             finding["destination_ips"] = [dst]
             finding["destination_ports"] = unique_ports
             finding["observations"] = [
-                f"{len(window)} TCP SYN packets observed from {src} to {dst}",
+                f"{window_size} TCP SYN packets observed from {src} to {dst}",
                 f"{len(unique_ports)} unique destination ports observed",
                 f"activity occurred within {round(last_event['epoch'] - first_event['epoch'], 2)} seconds",
             ]
@@ -228,7 +251,6 @@ def detect_vertical_syn_scans(packets):
             break
 
     return findings
-
 
 def detect_periodic_beaconing(packets):
     rule = DEFAULT_RULES["NET-BEACON-001"]
