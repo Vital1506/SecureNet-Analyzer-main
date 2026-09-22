@@ -3,7 +3,7 @@ from datetime import datetime
 
 from scapy.all import IP, TCP, UDP, ICMP, IPv6, Raw
 
-from Utils.blocklist import is_blocked_ip, load_blocklist
+from Utils.blocklist import load_blocklist
 from Utils.detection_engine import run_detections
 
 MAX_ANALYSIS_PAYLOAD_BYTES = 64 * 1024
@@ -176,31 +176,32 @@ def detect_suspicious_activity(packet, payload_data):
     return findings
 
 
-def analyze_packet(packet):
-    result = build_packet_analysis(packet)
+def analyze_packet(packet, blocked_ips=None):
+    result = build_packet_analysis(packet, blocked_ips=blocked_ips)
     print_packet_analysis(result)
 
 
-def build_packet_analysis(packet):
+def build_packet_analysis(packet, blocked_ips=None):
     """Analyze a packet once and return a reusable result dict."""
+    blocked_ips = set(load_blocklist()) if blocked_ips is None else set(blocked_ips)
     packet_info = extract_packet_info(packet)
     payload_data = extract_payload_data(packet)
     findings = detect_suspicious_activity(packet, payload_data)
 
     source_ip = packet_info.get('src_ip')
     destination_ip = packet_info.get('dst_ip')
-    blocked_ips = []
+    blocked_ips_found = []
 
     for ip in [source_ip, destination_ip]:
-        if ip and is_blocked_ip(ip):
-            blocked_ips.append(ip)
+        if ip and ip in blocked_ips:
+            blocked_ips_found.append(ip)
 
     return {
         'packet': packet,
         'packet_info': packet_info,
         'payload_data': payload_data,
         'findings': findings,
-        'blocked_ips': blocked_ips,
+        'blocked_ips': blocked_ips_found,
         'timestamp': get_packet_timestamp(packet),
     }
 
