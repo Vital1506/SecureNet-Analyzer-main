@@ -278,8 +278,11 @@ def check_cli_capture_arg_validation():
     # Capture mode without --pc should exit with a message (and non-zero).
     r = _run_cli(["c", "--offline"], timeout=15)
     _record("cli c without --pc exits non-zero", r.returncode != 0)
-    _record("cli c without --pc prints message",
-            "Provide --pc" in (r.stdout + r.stderr))
+    output = r.stdout + r.stderr
+    _record(
+        "cli c without --pc prints message",
+        "--pc" in output and ("positive integer" in output or "requires --pc" in output),
+    )
 
 
 def check_incident_reporting():
