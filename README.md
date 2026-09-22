@@ -840,11 +840,12 @@ MIT License. See [LICENSE](LICENSE).
 
 ## 👤 Author
 
-**Vittal Karthikeyan**
+**Vittal Karthikeyan mannuri**
 
 GitHub: [@Vital1506](https://github.com/Vital1506)
 
 Project: [SecureNet-Analyzer-main](https://github.com/Vital1506/SecureNet-Analyzer-main)
+Email : [vitalkarthikyeyanmannuri@gmail.com]
 
 ---
 
