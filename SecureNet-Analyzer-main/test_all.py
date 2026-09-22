@@ -229,7 +229,7 @@ def check_save_report_formats():
 
 
 def check_cli_help():
-    for args in (["c"], ["pcap"], ["lh"], ["block"], ["intel"]):
+    for args in (["c"], ["pcap"], ["lh"], ["block"], ["audit-verify"], ["intel"]):
         r = _run_cli(args + ["--help"], timeout=15)
         _record(f"cli help {args or '[root]'}", r.returncode == 0,
                 detail=r.stderr.splitlines()[:1] if r.returncode else "")
@@ -503,6 +503,9 @@ def check_input_hardening():
         input_path = os.path.join(td, "bounded.pcap")
         wrpcap(input_path, [pkt, pkt, pkt])
         _record("pcap fixture created", os.path.getsize(input_path) > 0)
+        from Main import _read_pcap_bounded
+        bounded, truncated, _ = _read_pcap_bounded(input_path, max_mb=1, max_packets=1)
+        _record("pcap packet limit enforced", len(bounded) == 1 and truncated)
     blocklist.BLOCKLIST_FILE = original_path
 
 
@@ -523,7 +526,8 @@ def check_new_cli_options_help():
     for needle in ["block-activate", "block-deactivate", "block-status", "intel",
                    "--dry-run", "--timeout", "--max-hosts", "--intel-source",
                    "--intel-auto-block", "--alert-on", "--alert-file", "--alert-exit",
-                   "--report-prefix", "--case-id", "--analyst", "--organization"]:
+                   "--report-prefix", "--case-id", "--analyst", "--organization", "--confirm-firewall",
+                   "--resolve-hostnames", "--max-pcap-mb", "--max-pcap-packets"]:
         ok, detail = _assert_contains(combined, needle, label="help output")
         _record(f"help mentions {needle}", ok, detail=detail)
 
@@ -551,6 +555,15 @@ def check_block_intel_auto_block():
     _record(
         "intel auto-block requires authentication",
         r.returncode != 0 and "Authentication required" in output,
+    )
+
+
+def check_audit_verify_cli():
+    r = _run_cli(["audit-verify", "--offline"], timeout=15)
+    _record(
+        "cli audit-verify runs",
+        r.returncode == 0 and "Audit log valid" in r.stdout,
+        detail=(r.stderr or r.stdout)[:200],
     )
 
 
@@ -638,6 +651,7 @@ def main():
     check_new_cli_options_help()
     check_block_intel_sample()
     check_block_intel_auto_block()
+    check_audit_verify_cli()
     check_block_status_cli()
     check_block_activate_dry_run()
     check_capture_alert_threshold_exit()
