@@ -2,7 +2,6 @@ from collections import Counter
 from datetime import datetime
 
 from scapy.all import IP, TCP, UDP, ICMP, IPv6, Raw
-from scapy.layers.inet6 import ICMPv6
 
 from Utils.blocklist import is_blocked_ip
 from Utils.detection_engine import run_detections
@@ -122,7 +121,7 @@ def extract_packet_info(packet):
         packet_info['dst_port'] = packet[UDP].dport
     elif ICMP in packet:
         packet_info['protocol_name'] = 'ICMP'
-    elif ICMPv6 in packet:
+    elif IPv6 in packet and packet[IPv6].nh == 58:
         packet_info['protocol_name'] = 'ICMPv6'
 
     return packet_info
