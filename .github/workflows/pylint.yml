@@ -37,6 +37,7 @@ jobs:
         run: python -m compileall -q Main.py Utils
       - name: Build package
         run: python -m build
+        working-directory: ${{ github.workspace }}
 
       - name: Run Bandit security scan
         run: bandit -r Main.py Utils -ll
