@@ -284,7 +284,7 @@ def main():
 
     parser.add_argument(
         "option",
-        choices=["c", "lh", "block", "block-activate", "block-deactivate", "block-status", "intel"],
+        choices=["c", "pcap", "lh", "block", "block-activate", "block-deactivate", "block-status", "intel"],
         help=(
             "c: live capture | pcap: offline PCAP investigation | lh: live-host detection | block: local blocklist management | "
             "block-activate: enforce blocked IPs via firewall | block-deactivate: remove firewall rules | "
