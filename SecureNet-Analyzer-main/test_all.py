@@ -221,7 +221,7 @@ def check_save_report_formats():
 
 
 def check_cli_help():
-    for args in ([], ["c"], ["lh"], ["block"]):
+    for args in (["c"], ["lh"], ["block"], ["intel"]):
         r = _run_cli(args + ["--help"], timeout=15)
         _record(f"cli help {args or '[root]'}", r.returncode == 0,
                 detail=r.stderr.splitlines()[:1] if r.returncode else "")
@@ -244,16 +244,10 @@ def check_cli_block_commands():
     r = _run_cli(["block", "--list-blocks", "--offline"], timeout=15)
     _record("cli block list excludes removed", "192.168.99.99" not in r.stdout)
 
-    before = [
-        line.strip() for line in open(os.path.join(PROJECT_DIR, "blocked_ips.txt"), encoding="utf-8").read().splitlines()
-        if line.strip()
-    ]
+    from Utils import blocklist\n    before = blocklist.load_blocklist()
     r = _run_cli(["block", "--clear-blocks", "--offline"], timeout=15)
     _record("cli block --clear-blocks", r.returncode == 0 and "cleared" in r.stdout)
-    after = [
-        line.strip() for line in open(os.path.join(PROJECT_DIR, "blocked_ips.txt"), encoding="utf-8").read().splitlines()
-        if line.strip()
-    ]
+    after = blocklist.load_blocklist()
     _record("cli block clear empties file", after == [])
 
     # Restore a known entry for downstream checks.
