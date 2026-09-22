@@ -114,8 +114,8 @@ def check_filters():
         else:
             _record(f"filter rejects invalid: {expression!r}", False)
 
-    from scapy.layers.inet6 import IPv6, ICMPv6
-    ipv6_icmp = Ether()/IPv6(src="2001:db8::1", dst="2001:db8::2")/ICMPv6()
+    from scapy.layers.inet6 import IPv6
+    ipv6_icmp = Ether()/IPv6(src="2001:db8::1", dst="2001:db8::2", nh=58)/Raw(load=b"icmpv6")
     _record("filter matches protocol icmp6", packet_filter(ipv6_icmp, {"protocol": "icmp6"}))
     _record("filter rejects protocol tcp for icmp6", not packet_filter(ipv6_icmp, {"protocol": "tcp"}))
 
