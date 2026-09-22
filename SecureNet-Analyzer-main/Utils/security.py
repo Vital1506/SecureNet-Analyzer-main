@@ -48,6 +48,7 @@ def hash_password(password):
         r=_SCRYPT_R,
         p=_SCRYPT_P,
         dklen=_DK_BYTES,
+        maxmem=_SCRYPT_MAXMEM,
     )
     return "$".join([
         SCRYPT_PREFIX,
