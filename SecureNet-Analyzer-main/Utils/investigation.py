@@ -49,7 +49,7 @@ def extract_iocs(packet, payload=""):
     elif UDP in packet:
         iocs["ports"].extend([int(packet[UDP].sport), int(packet[UDP].dport)])
     text = payload or ""
-    for match in re.findall(r"https?://[^\\s<>\"]+", text, re.I):
+    for match in re.findall(r"https?://[^\s<>\"]+", text, re.I):
         iocs["urls"].append(match.rstrip(".,);]"))
     for match in re.findall(r"\b(?:[a-z0-9-]+\.)+[a-z]{2,63}\b", text, re.I):
         if match.lower() not in {"example.com", "localhost.localdomain"}:
