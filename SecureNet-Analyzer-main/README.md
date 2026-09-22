@@ -22,6 +22,8 @@
 | 🔥 **Real Firewall Blocking (Windows)** | Enforce the local blocklist by creating Windows Firewall block rules (inbound + outbound) for each blocked IP |
 | 📡 **Threat Intel Ingestion** | Load STIX2 bundles, extract IPv4/IPv6 IOCs, and optionally auto-add them to the blocklist |
 | 🚨 **Risk-Threshold Alerting** | Trigger an alert (stdout / file / exit code) when the risk score crosses a threshold |
+| 🧠 **Behavioral Detection Engine** | Detect horizontal/vertical TCP SYN scans and periodic web beaconing using time-window behavior rather than single-packet rules |
+| 📼 **Offline PCAP Investigation** | Investigate an existing PCAP without live capture privileges; the same detection and reporting engine is used |
 | 🧭 **Investigation Timeline** | Normalize suspicious events into a chronological, packet-linked incident timeline |
 | 🧩 **MITRE ATT&CK Mapping** | Map observed network/payload patterns to ATT&CK technique hypotheses for analyst triage |
 | 🎯 **IOC Extraction** | Extract observed IPs, domains, URLs, and ports into machine-readable investigation data |
@@ -83,7 +85,8 @@ SecureNet Analyzer is driven entirely through the CLI. The first positional argu
 ### Primary modes
 | Mode | Description |
 |---|---|
-| `c` | Start packet capture and analysis |
+| `c` | Start live packet capture and analysis |
+| `pcap` | Investigate an existing PCAP offline using the same detection, correlation, and reporting pipeline |
 | `lh` | Perform live host detection on the network |
 | `block` | Manage the local IP blocklist |
 | `block-activate` | Enforce the local blocklist via Windows Firewall rules |
@@ -95,7 +98,8 @@ SecureNet Analyzer is driven entirely through the CLI. The first positional argu
 | Flag | Description |
 |---|---|
 | `--i [interface]` | Network interface to capture from (e.g. `WiFi`, `eth0`). |
-| `--pc [number]` | Number of packets to capture (required for capture mode unless using blocklist flags) |
+| `--pc [number]` | Number of packets to capture (live capture mode) |
+| `--input [path]` | Input PCAP file for offline investigation mode |
 | `--a` | Analyze captured packets in real time |
 | `--s` | Save captured packets |
 | `--p [filename]` | Save captured packets in **PCAP** format |
@@ -202,7 +206,21 @@ python Main.py intel --intel-source my_threats.stix2.json --intel-auto-block --o
 The `intel` mode loads a STIX2 JSON bundle, extracts IPv4/IPv6 indicators, prints a summary, and optionally adds valid IP IOCs to the local blocklist. Non-IP indicators (file hashes, URLs, etc.) are counted but not added.
 
 
-### Example 7 — Investigation-grade incident package
+### Example 7 — Offline PCAP investigation
+```bash
+python Main.py pcap --input evidence_CASE001.pcap --summary --report-prefix reports\\CASE001 --case-id CASE-001 --analyst "Security Analyst" --organization "Example SOC" --offline
+```
+Investigates an existing PCAP without starting a live sniffer. Behavioral detections, sessions, timeline, IOCs, MITRE hypotheses, evidence hashes, and the JSON/TXT/HTML incident package are produced from the same analysis pipeline.
+
+### Example 8 — Behavioral detections
+For an authorized capture or offline PCAP, SecureNet Analyzer can identify higher-level traffic patterns including:
+- **Horizontal TCP SYN scan** — repeated SYN traffic from one source to many destinations within a time window.
+- **Vertical TCP SYN scan** — repeated SYN traffic from one source to many service ports on one destination within a time window.
+- **Periodic web beaconing** — repeated TCP/UDP connections to web ports with low inter-arrival jitter over time.
+
+Each behavioral finding contains a rule ID, rule-pack version, severity, confidence, timestamps, observations, MITRE reference, and the packet numbers used as evidence.
+
+### Example 9 — Investigation-grade incident package
 ```bash
 python Main.py c --i WiFi --pc 500 --a --summary --s --p evidence_CASE001.pcap --report-prefix reports\\CASE001 --case-id CASE-001 --analyst "Security Analyst" --organization "Example SOC"
 ```
@@ -226,7 +244,7 @@ This produces a PCAP plus an investigation package containing:
 - **Password storage** — credentials are hashed with SHA-256 and never stored in plaintext.
 - **Authorized networks only** — only run this tool on networks you own or have explicit written permission to test. Unauthorized traffic analysis may be illegal.
 - **ARP scanning alerts** — live host detection relies on ARP requests, which some network monitoring systems may flag as ARP spoofing activity. Confirm you're operating in an authorized environment before scanning.
-- **Blocklist is local/analytical** — the blocklist flags and scores traffic but does not drop or block packets at the network level.
+- **Blocklist and firewall controls** — the local blocklist is used for analytical scoring; `block-activate` can additionally enforce those entries through Windows Firewall when run with appropriate privileges.
 
 ---
 

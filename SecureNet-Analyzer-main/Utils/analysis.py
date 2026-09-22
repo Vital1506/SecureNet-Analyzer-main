@@ -4,22 +4,29 @@ from datetime import datetime
 from scapy.all import IP, TCP, UDP, ICMP, IPv6, Raw
 
 from Utils.blocklist import is_blocked_ip
+from Utils.detection_engine import run_detections
 
 
 def calculate_risk_score(captured_packets):
-    score = 0
+    packet_score = 0
     for packet in captured_packets:
         payload_data = extract_payload_data(packet)
         findings = detect_suspicious_activity(packet, payload_data)
-        score += len(findings) * 20
+        packet_score += len(findings) * 20
 
         packet_info = extract_packet_info(packet)
         src_ip = packet_info.get('src_ip')
         dst_ip = packet_info.get('dst_ip')
         if src_ip and is_blocked_ip(src_ip):
-            score += 35
+            packet_score += 35
         if dst_ip and is_blocked_ip(dst_ip):
-            score += 35
+            packet_score += 35
+
+    score = min(packet_score, 70)
+    severity_weights = {'LOW': 8, 'MEDIUM': 16, 'HIGH': 28, 'CRITICAL': 40}
+    for detection in run_detections(captured_packets):
+        weight = severity_weights.get(detection['severity'], 10)
+        score += weight + round(12 * detection['confidence'])
 
     return min(score, 100)
 
@@ -50,7 +57,9 @@ def get_security_summary(captured_packets):
         if 'dst_port' in packet_info:
             top_ports[packet_info.get('dst_port')] += 1
 
+    detections = run_detections(captured_packets)
     risk_score = calculate_risk_score(captured_packets)
+    highest_confidence = max((item['confidence'] for item in detections), default=0.0)
     if risk_score >= 80:
         risk_level = 'CRITICAL'
     elif risk_score >= 50:
@@ -69,6 +78,9 @@ def get_security_summary(captured_packets):
         'most_active_source': source_ips.most_common(1)[0][0] if source_ips else 'N/A',
         'most_active_destination': dest_ips.most_common(1)[0][0] if dest_ips else 'N/A',
         'most_common_port': top_ports.most_common(1)[0][0] if top_ports else 'N/A',
+        'behavioral_detections': len(detections),
+        'detection_rules': sorted({item['rule_id'] for item in detections}),
+        'highest_detection_confidence': highest_confidence,
     }
 
 

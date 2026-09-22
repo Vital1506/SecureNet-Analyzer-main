@@ -182,6 +182,14 @@ def check_analysis():
     score = calculate_risk_score([pkt])
     _record("calculate_risk_score > 0", score > 0)
 
+    scan_packets = []
+    for index in range(15):
+        scan_pkt = Ether()/IP(src="10.0.0.5", dst=f"10.0.0.{100 + index}")/TCP(sport=7000 + index, dport=80, flags="S")
+        scan_pkt.time = 1763276400.0 + index
+        scan_packets.append(scan_pkt)
+    scan_summary = get_security_summary(scan_packets)
+    _record("risk score includes behavioral detections", scan_summary["behavioral_detections"] >= 1 and scan_summary["risk_score"] > 0)
+
 
 def check_save_report_formats():
     from Utils.save import save_to_txt, save_to_html, save_to_pcap, format_packet_report
@@ -221,7 +229,7 @@ def check_save_report_formats():
 
 
 def check_cli_help():
-    for args in (["c"], ["lh"], ["block"], ["intel"]):
+    for args in (["c"], ["pcap"], ["lh"], ["block"], ["intel"]):
         r = _run_cli(args + ["--help"], timeout=15)
         _record(f"cli help {args or '[root]'}", r.returncode == 0,
                 detail=r.stderr.splitlines()[:1] if r.returncode else "")
@@ -365,6 +373,39 @@ def check_behavioral_detection_engine():
         summary["rules"].get("NET-SCAN-001") == 1 and summary["rules"].get("NET-SCAN-002") == 1,
     )
     _record("detection summary has rule pack version", summary["rule_pack_version"] == "1.0.0")
+
+
+def check_cli_pcap_investigation():
+    from scapy.all import Ether, IP, TCP, Raw, wrpcap
+
+    with tempfile.TemporaryDirectory() as td:
+        input_path = os.path.join(td, "fixture.pcap")
+        output_prefix = os.path.join(td, "reports", "case")
+        pkt = Ether()/IP(src="10.0.0.5", dst="10.0.0.10")/TCP(sport=4000, dport=443, flags="PA")/Raw(load=b"GET /status HTTP/1.1\\r\\nHost: test.local\\r\\n")
+        pkt.time = 1763276400.0
+        wrpcap(input_path, [pkt])
+
+        result = _run_cli([
+            "pcap",
+            "--input", input_path,
+            "--summary",
+            "--report-prefix", output_prefix,
+            "--case-id", "PCAP-001",
+            "--analyst", "CI",
+            "--organization", "SecureNet Test",
+            "--offline",
+        ], timeout=30)
+
+        expected_json = output_prefix + "_PCAP-001.json"
+        expected_txt = output_prefix + "_PCAP-001.txt"
+        expected_html = output_prefix + "_PCAP-001.html"
+        _record("cli pcap investigation exits cleanly", result.returncode == 0, detail=(result.stderr or result.stdout)[:300])
+        _record("cli pcap investigation creates json", os.path.exists(expected_json))
+        _record("cli pcap investigation creates txt", os.path.exists(expected_txt))
+        _record("cli pcap investigation creates html", os.path.exists(expected_html))
+
+        result = _run_cli(["pcap", "--input", os.path.join(td, "missing.pcap"), "--offline"], timeout=15)
+        _record("cli pcap missing file fails cleanly", result.returncode != 0 and "Unable to read PCAP" in (result.stdout + result.stderr))
 
 
 def check_analysis_reuse():
@@ -529,6 +570,7 @@ def main():
     check_cli_help()
     check_cli_block_commands()
     check_cli_capture_arg_validation()
+    check_cli_pcap_investigation()
     check_analysis_reuse()
     check_incident_reporting()
     check_investigation_engine()
