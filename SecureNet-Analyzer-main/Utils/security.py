@@ -5,6 +5,7 @@ password files can be verified once and transparently upgraded.
 """
 
 import base64
+import binascii
 import hashlib
 import hmac
 import os
@@ -14,12 +15,12 @@ import tempfile
 PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 PASSWORD_FILE = os.path.join(PROJECT_ROOT, "password_hash.txt")
 SCRYPT_PREFIX = "scrypt"
-_SCRYPT_N = 2**14
+_SCRYPT_N = 2**17
 _SCRYPT_R = 8
 _SCRYPT_P = 1
 _SALT_BYTES = 16
 _DK_BYTES = 64
-_MAX_SCRYPT_N = 2**16
+_MAX_SCRYPT_N = 2**18
 _MAX_SCRYPT_R = 32
 _MAX_SCRYPT_P = 8
 _MAX_SALT_BYTES = 64
@@ -81,7 +82,7 @@ def _verify_scrypt(password, record):
             dklen=len(expected),
         )
         return hmac.compare_digest(actual, expected)
-    except (ValueError, TypeError, base64.binascii.Error):
+    except (ValueError, TypeError, binascii.Error):
         return False
 
 
