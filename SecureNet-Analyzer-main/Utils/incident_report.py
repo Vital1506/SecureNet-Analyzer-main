@@ -8,6 +8,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
 from Utils.analysis import build_packet_analysis, get_security_summary
+from Utils.blocklist import load_blocklist
 from Utils.investigation import build_sessions, build_timeline, build_case_summary
 from Utils.detection_engine import run_detections
 
@@ -47,9 +48,10 @@ def build_incident_dataset(packets, resolve_hostnames=False):
         "findings": Counter(), "blocklist_hits": 0
     })
     events = []
+    blocked_ips = load_blocklist()
 
     for number, packet in enumerate(packets, 1):
-        result = build_packet_analysis(packet)
+        result = build_packet_analysis(packet, blocked_ips=blocked_ips)
         info = result["packet_info"]
         src = info.get("src_ip")
         dst = info.get("dst_ip")
