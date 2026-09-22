@@ -19,6 +19,11 @@ _SCRYPT_R = 8
 _SCRYPT_P = 1
 _SALT_BYTES = 16
 _DK_BYTES = 64
+_MAX_SCRYPT_N = 2**16
+_MAX_SCRYPT_R = 32
+_MAX_SCRYPT_P = 8
+_MAX_SALT_BYTES = 64
+_MIN_DK_BYTES = 16
 
 
 def _b64(data):
@@ -60,6 +65,11 @@ def _verify_scrypt(password, record):
         n, r, p = (int(parts[index]) for index in (1, 2, 3))
         salt = _unb64(parts[4])
         expected = _unb64(parts[5])
+        if (n < 2**10 or n > _MAX_SCRYPT_N or r < 1 or r > _MAX_SCRYPT_R or
+                p < 1 or p > _MAX_SCRYPT_P):
+            return False
+        if len(salt) > _MAX_SALT_BYTES or len(expected) < _MIN_DK_BYTES or len(expected) > 128:
+            return False
         if not salt or not expected:
             return False
         actual = hashlib.scrypt(
