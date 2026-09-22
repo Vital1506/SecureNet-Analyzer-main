@@ -35,6 +35,10 @@ def append_audit(action, actor="local", metadata=None, path=AUDIT_FILE):
     The chain is tamper-evident, not a replacement for an external immutable
     logging system or a cryptographic signature.
     """
+    valid, _, error = verify_audit_log(path)
+    if not valid:
+        raise OSError(f"Refusing to append to invalid audit log: {error}")
+
     record = {
         "version": AUDIT_VERSION,
         "timestamp": datetime.now(timezone.utc).isoformat(),
