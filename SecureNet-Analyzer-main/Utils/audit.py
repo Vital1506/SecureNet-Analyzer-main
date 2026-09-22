@@ -1,11 +1,10 @@
 """Tamper-evident local audit logging for SecureNet Analyzer."""
 
 import hashlib
+import hmac
 import json
 import os
 from datetime import datetime, timezone
-
-from Utils.security import atomic_write_text
 
 AUDIT_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "audit.log")
 AUDIT_VERSION = 1
@@ -89,5 +88,4 @@ def verify_audit_log(path=AUDIT_FILE):
 
 def hmac_compare(left, right):
     """Constant-time comparison helper for audit digests."""
-    import hmac
     return hmac.compare_digest(str(left), str(right))
