@@ -7,6 +7,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
 from Utils.analysis import build_packet_analysis, get_security_summary
+from Utils.investigation import build_sessions, build_timeline, build_case_summary
 
 
 def _timestamp(packet):
@@ -104,6 +105,9 @@ def build_incident_dataset(packets):
         "summary": get_security_summary(packets),
         "hosts": records,
         "events": events,
+        "sessions": build_sessions(packets),
+        "timeline": build_timeline(packets),
+        "case_summary": build_case_summary(packets),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "attribution_warning": "This report describes observed network activity. An IP address alone does not establish ownership or attacker attribution."
     }
@@ -148,6 +152,9 @@ def generate_incident_report(packets, prefix, case_id="UNASSIGNED",
         "summary": dataset["summary"],
         "observed_ips": dataset["hosts"],
         "security_events": dataset["events"],
+        "sessions": dataset["sessions"],
+        "timeline": dataset["timeline"],
+        "case_summary": dataset["case_summary"],
         "evidence": evidence
     }
 
@@ -198,6 +205,14 @@ def generate_incident_report(packets, prefix, case_id="UNASSIGNED",
         else:
             handle.write("No configured security detections were triggered.\n")
 
+        handle.write("\nINVESTIGATION ENRICHMENT\n" + "-" * 78 + "\n")
+        handle.write(f"Timeline events: {dataset['case_summary']['timeline_events']}\n")
+        handle.write(f"MITRE ATT&CK techniques: {dataset['case_summary']['mitre_techniques']}\n")
+        handle.write(f"IOC counts: {dataset['case_summary']['ioc_counts']}\n\n")
+        handle.write("TIMELINE\n" + "-" * 78 + "\n")
+        for event in dataset["timeline"]:
+            techniques = ", ".join(x["technique_id"] for x in event["mitre"]) or "None"
+            handle.write(f"{event['timestamp']} | Packet {event['packet']} | {event['source_ip']} -> {event['destination_ip']} | MITRE: {techniques}\n")
         handle.write("\nEVIDENCE INTEGRITY\n" + "-" * 78 + "\n")
         for item in evidence:
             handle.write(f"File: {item['path']}\nSize: {item['size_bytes']} bytes\nSHA-256: {item['sha256']}\n")
@@ -226,6 +241,14 @@ def generate_incident_report(packets, prefix, case_id="UNASSIGNED",
             f"<td>{html.escape(event['source_ip'])}</td><td>{html.escape(event['destination_ip'])}</td>"
             f"<td>{html.escape(event['protocol'])}</td><td>{event['source_port']}</td><td>{event['destination_port']}</td>"
             f"<td>{event['bytes']}</td><td>{findings}</td><td>{blocklist}</td></tr>"
+        )
+
+    timeline_rows = []
+    for event in dataset["timeline"]:
+        techniques = "<br>".join(html.escape(x["technique_id"] + " — " + x["technique"]) for x in event["mitre"]) or "None"
+        timeline_rows.append(
+            f"<tr><td>{html.escape(event['timestamp'])}</td><td>{event['packet']}</td>"
+            f"<td>{html.escape(event['source_ip'])}</td><td>{html.escape(event['destination_ip'])}</td><td>{techniques}</td></tr>"
         )
 
     evidence_rows = [
@@ -269,6 +292,15 @@ code{{word-break:break-all}}
 <div class="card"><h2>Security Events</h2>
 <table><thead><tr><th>Packet</th><th>Timestamp</th><th>Source</th><th>Destination</th><th>Protocol</th><th>Src Port</th><th>Dst Port</th><th>Bytes</th><th>Findings</th><th>Blocklist</th></tr></thead>
 <tbody>{''.join(event_rows) or '<tr><td colspan="10">No security events generated.</td></tr>'}</tbody></table></div>
+
+<div class="card"><h2>Investigation Enrichment</h2>
+<div class="grid"><div class="metric"><b>Timeline events</b>{dataset["case_summary"]["timeline_events"]}</div>
+<div class="metric"><b>MITRE techniques</b>{len(dataset["case_summary"]["mitre_techniques"])}</div>
+<div class="metric"><b>IOC categories</b>{len(dataset["case_summary"]["ioc_counts"])}</div></div>
+<p><b>MITRE mapping is heuristic:</b> technique IDs are detection hypotheses based on observed metadata/payload patterns, not proof of adversary intent.</p>
+<h3>Incident Timeline</h3>
+<table><thead><tr><th>Timestamp</th><th>Packet</th><th>Source</th><th>Destination</th><th>MITRE ATT&CK</th></tr></thead>
+<tbody>{''.join(timeline_rows) or '<tr><td colspan="5">No enriched timeline events.</td></tr>'}</tbody></table></div>
 
 <div class="card"><h2>Evidence Integrity</h2>
 <p>SHA-256 hashes are recorded for supplied evidence files. Preserve originals according to your organization's evidence-preservation procedures.</p>
