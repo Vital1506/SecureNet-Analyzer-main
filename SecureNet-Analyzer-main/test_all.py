@@ -448,6 +448,10 @@ def check_security_core():
     _record("security password verifies", valid and not legacy)
     _record("security wrong password rejected", not invalid)
 
+    malicious = "scrypt$999999999$999999999$999$AQ==$AQ=="
+    rejected, _ = verify_password("anything", malicious)
+    _record("security rejects malicious KDF parameters", not rejected)
+
     with tempfile.TemporaryDirectory() as td:
         password_path = os.path.join(td, "password_hash.txt")
         save_password_record(record_one, password_path)
