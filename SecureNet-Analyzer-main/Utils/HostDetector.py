@@ -9,7 +9,7 @@ _MAX_SCAN_HOSTS = 254
 def get_mac_vendor(mac):
     try:
         return MacLookup().lookup(mac)
-    except (OSError, ValueError, KeyError):
+    except Exception:  # third-party MAC lookup can raise library-specific errors
         return "Unknown"
 
 
