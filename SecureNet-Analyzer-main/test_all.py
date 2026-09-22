@@ -83,7 +83,7 @@ def check_imports():
 
 def check_filters():
     from Utils.filters import parse_filter_string, packet_filter
-    from scapy.all import IP, TCP, Ether
+    from scapy.all import IP, TCP, Ether, Raw
 
     cases = [
         ("all", None),
