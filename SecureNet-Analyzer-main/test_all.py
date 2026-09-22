@@ -653,7 +653,7 @@ def check_code_hardening_regressions():
     from Utils import block_engine
     from Utils.incident_report import _safe_case_id, generate_incident_report
     from Utils.investigation import build_sessions, build_timeline
-    from scapy.all import Ether, IPv6, TCP
+    from scapy.all import Ether, IPv6, TCP, Raw
 
     with patch.object(block_engine, "_elevated", return_value=False):
         result = block_engine.block_activate(["10.0.0.8"], dry_run=False)
