@@ -104,6 +104,8 @@
 | **Response** | Local blocklist + Windows Firewall enforcement |
 | **Security Core** | Salted scrypt, login throttling, resource limits, atomic writes, hash-chained audit |
 | **Output** | PCAP, TXT, HTML, JSON |
+| **Alerting** | Risk-threshold stdout/file alerts with optional non-zero exit |
+| **Filtering** | Source/destination host/port and protocol filters |
 | **CI** | Regression tests, compile checks, Bandit, pip-audit, Pylint |
 
 </div>
@@ -171,6 +173,31 @@ Load STIX2 bundles, extract valid IPv4/IPv6 indicators, and optionally feed IP i
 ### 🔥 CONTROLLED RESPONSE
 
 Windows Firewall integration is protected by authentication, Administrator checks, explicit confirmation, and audit events.
+
+### 🚨 THRESHOLD ALERTING
+
+Risk thresholds can trigger alerts to stdout, append alerts to a file, and optionally return exit code `2` for automation.
+
+```bash
+python Main.py c --pc 100 --a --summary --alert-on 50 --alert-file alerts.log --alert-exit
+```
+
+### 🎛️ TRAFFIC FILTERING
+
+Capture filters support source/destination hosts, ports, and protocols. Multiple clauses can be joined with `and`.
+
+```text
+src host 10.0.0.5
+dst host 192.168.1.10
+src port 443
+dst port 22
+tcp
+udp
+icmp
+icmp6
+ip
+ipv6
+```
 
 </div>
 
@@ -405,7 +432,8 @@ SecureNet-Analyzer-main/
         ├── intel.py
         ├── investigation.py
         ├── save.py
-        └── security.py
+        ├── security.py
+        └── sample_intel.stix2.json
 ```
 
 </div>
@@ -501,9 +529,19 @@ python Main.py lh --ip 192.168.1.10 --timeout 3 --max-hosts 50
 
 ### STIX2 Threat Intelligence
 
+Use the bundled sample:
+
 ```bash
 python Main.py intel --intel-source sample --offline
 ```
+
+Automatic IP blocklisting is also available for explicitly authorized response workflows:
+
+```bash
+python Main.py intel --intel-source my_threats.stix2.json --intel-auto-block
+```
+
+Threat-intelligence content should be reviewed before enforcement.
 
 ### Audit Verification
 
