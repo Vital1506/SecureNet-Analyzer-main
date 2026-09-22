@@ -34,12 +34,15 @@ BLOCK_PREFIX_OUT = "SecureNet_Block_Out_"
 
 
 def _elevated() -> bool:
-    """Best-effort check for an elevated/Administrator shell on Windows."""
+    """Check whether Windows is running this process as Administrator."""
     if sys.platform != "win32":
         return False
     try:
-        return shutil.which("netsh") is not None
-    except Exception:
+        import ctypes
+        return shutil.which("netsh") is not None and bool(
+            ctypes.windll.shell32.IsUserAnAdmin()
+        )
+    except (AttributeError, OSError):
         return False
 
 
