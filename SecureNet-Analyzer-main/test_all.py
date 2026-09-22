@@ -114,6 +114,11 @@ def check_filters():
         else:
             _record(f"filter rejects invalid: {expression!r}", False)
 
+    from scapy.layers.inet6 import IPv6, ICMPv6
+    ipv6_icmp = Ether()/IPv6(src="2001:db8::1", dst="2001:db8::2")/ICMPv6()
+    _record("filter matches protocol icmp6", packet_filter(ipv6_icmp, {"protocol": "icmp6"}))
+    _record("filter rejects protocol tcp for icmp6", not packet_filter(ipv6_icmp, {"protocol": "tcp"}))
+
     # Build a synthetic TCP packet and confirm filtering logic.
     pkt = Ether()/IP(src="10.0.0.1", dst="192.168.1.10")/TCP(sport=12345, dport=80)
     _record("filter matches src_ip", packet_filter(pkt, {"src_ip": "10.0.0.1"}))
@@ -729,6 +734,17 @@ def check_intel_file_bounds():
             _record("intel file size limit enforced", False)
 
 
+
+def check_cli_icmp6():
+    r = _run_cli(["c", "--pc", "1", "--f", "ICMP6"], timeout=10)
+    output = r.stdout + r.stderr
+    _record(
+        "cli accepts case-insensitive protocol filter",
+        "Invalid filter" not in output and "unsupported filter condition" not in output.lower(),
+        detail=output[:200],
+    )
+
+
 def main():
     print("=" * 70)
     print("SecureNet Analyzer - automated verification")
@@ -768,6 +784,7 @@ def main():
     check_code_hardening_regressions()
     check_cli_input_validation()
     check_intel_file_bounds()
+    check_cli_icmp6()
 
     print("=" * 70)
     print(f"Results: {len(PASS)} passed, {len(FAIL)} failed")
