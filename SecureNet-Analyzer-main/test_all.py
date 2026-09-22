@@ -236,32 +236,23 @@ def check_cli_help():
 
 
 def check_cli_block_commands():
-    # Uses --offline to avoid login prompt; operates on real persistent file.
+    """Verify read-only offline access and reject unauthenticated mutations."""
     r = _run_cli(["block", "--list-blocks", "--offline"], timeout=15)
-    _record("cli block --list-blocks", r.returncode == 0, detail=r.stdout.strip().splitlines()[:3])
+    _record("cli block --list-blocks offline", r.returncode == 0)
 
     r = _run_cli(["block", "--block", "192.168.99.99", "--offline"], timeout=15)
-    _record("cli block --block", r.returncode == 0 and "Added 192.168.99.99" in r.stdout)
+    output = r.stdout + r.stderr
+    _record(
+        "cli offline block mutation rejected",
+        r.returncode != 0 and "Authentication required" in output,
+    )
 
-    r = _run_cli(["block", "--list-blocks", "--offline"], timeout=15)
-    _record("cli block list includes added", "192.168.99.99" in r.stdout)
-
-    r = _run_cli(["block", "--unblock", "192.168.99.99", "--offline"], timeout=15)
-    _record("cli block --unblock", r.returncode == 0 and "Removed 192.168.99.99" in r.stdout)
-
-    r = _run_cli(["block", "--list-blocks", "--offline"], timeout=15)
-    _record("cli block list excludes removed", "192.168.99.99" not in r.stdout)
-
-    from Utils import blocklist
-    before = blocklist.load_blocklist()
-    r = _run_cli(["block", "--clear-blocks", "--offline"], timeout=15)
-    _record("cli block --clear-blocks", r.returncode == 0 and "cleared" in r.stdout)
-    after = blocklist.load_blocklist()
-    _record("cli block clear empties file", after == [])
-
-    # Restore a known entry for downstream checks.
-    from Utils import blocklist
-    blocklist.add_ip_to_blocklist("10.0.0.6")
+    r = _run_cli(["block-activate", "--dry-run", "--offline"], timeout=15)
+    output = r.stdout + r.stderr
+    _record(
+        "cli offline firewall action rejected",
+        r.returncode != 0 and "Authentication required" in output,
+    )
 
 
 def check_cli_capture_arg_validation():
@@ -443,6 +434,78 @@ def check_host_detector_import():
     _record("HostDetector.get_mac_vendor unknown", get_mac_vendor("00:00:00:00:00:00") in {"Unknown", ""} or True)
 
 
+def check_security_core():
+    from Utils.security import hash_password, verify_password, load_password_record, save_password_record
+    from Utils.audit import append_audit, verify_audit_log
+
+    record_one = hash_password("Correct-Horse-Battery-42!")
+    record_two = hash_password("Correct-Horse-Battery-42!")
+    valid, legacy = verify_password("Correct-Horse-Battery-42!", record_one)
+    invalid, _ = verify_password("wrong-password", record_one)
+
+    _record("security password uses scrypt", record_one.startswith("scrypt$"))
+    _record("security password salts are unique", record_one != record_two)
+    _record("security password verifies", valid and not legacy)
+    _record("security wrong password rejected", not invalid)
+
+    with tempfile.TemporaryDirectory() as td:
+        password_path = os.path.join(td, "password_hash.txt")
+        save_password_record(record_one, password_path)
+        _record("security password record round-trips", load_password_record(password_path) == record_one)
+
+        audit_path = os.path.join(td, "audit.log")
+        append_audit("TEST_ONE", metadata={"value": "alpha"}, path=audit_path)
+        append_audit("TEST_TWO", metadata={"value": "beta"}, path=audit_path)
+        ok, count, detail = verify_audit_log(audit_path)
+        _record("audit chain verifies", ok and count == 2, detail=detail)
+
+        with open(audit_path, "r+", encoding="utf-8") as handle:
+            data = handle.read()
+            handle.seek(0)
+            handle.write(data.replace("TEST_TWO", "TAMPERED", 1))
+            handle.truncate()
+        ok, _, _ = verify_audit_log(audit_path)
+        _record("audit tamper is detected", not ok)
+
+
+def check_input_hardening():
+    from Utils import blocklist
+    from Utils.analysis import extract_payload_data
+    from Utils.incident_report import build_incident_dataset
+    from scapy.all import Ether, IP, TCP, Raw, wrpcap
+
+    original_path = blocklist.BLOCKLIST_FILE
+    with tempfile.TemporaryDirectory() as td:
+        blocklist.BLOCKLIST_FILE = os.path.join(td, "blocked_ips.txt")
+        _record("blocklist rejects invalid IP", not blocklist.add_ip_to_blocklist("not-an-ip"))
+        _record("blocklist normalizes valid IPv6", blocklist.add_ip_to_blocklist("2001:0db8::1"))
+        _record("blocklist stores normalized IPv6", blocklist.load_blocklist() == ["2001:db8::1"])
+
+        huge = Ether()/IP(src="10.0.0.1", dst="10.0.0.2")/TCP()/Raw(load=b"A" * (70 * 1024))
+        payload = extract_payload_data(huge)
+        _record(
+            "payload analysis is bounded",
+            len(payload.encode("utf-8")) < 70 * 1024 and "[PAYLOAD TRUNCATED]" in payload,
+        )
+
+        calls = []
+        import Utils.incident_report as incident_report
+        original_lookup = incident_report.socket.gethostbyaddr
+        incident_report.socket.gethostbyaddr = lambda ip: calls.append(ip) or ("host", [], [ip])
+        try:
+            pkt = Ether()/IP(src="10.0.0.1", dst="10.0.0.2")/TCP()
+            pkt.time = 1763276400.0
+            build_incident_dataset([pkt])
+        finally:
+            incident_report.socket.gethostbyaddr = original_lookup
+        _record("offline report avoids DNS by default", calls == [])
+
+        input_path = os.path.join(td, "bounded.pcap")
+        wrpcap(input_path, [pkt, pkt, pkt])
+        _record("pcap fixture created", os.path.getsize(input_path) > 0)
+    blocklist.BLOCKLIST_FILE = original_path
+
+
 def check_offline_flag_rejects_login_prompt():
     """
     Ensure --offline makes block commands non-interactive. We validate by
@@ -479,24 +542,16 @@ def check_block_intel_sample():
 
 
 def check_block_intel_auto_block():
-    """Add sample IOCs to the real blocklist, then verify they landed."""
-    # Ensure a clean-ish baseline for this check.
-    from Utils import blocklist
-    blocklist.clear_blocklist()
-
-    r = _run_cli(["intel", "--intel-source", "sample", "--intel-auto-block", "--offline"], timeout=30)
-    ok = r.returncode == 0
-    detail = "" if ok else (r.stderr or r.stdout)[:200]
-    _record("intel auto-block runs", ok, detail=detail)
-
-    if ok:
-        blocked = blocklist.load_blocklist()
-        _record("intel auto-block added ipv4", "198.51.100.10" in blocked and "203.0.113.25" in blocked,
-                detail=str(blocked))
-        _record("intel auto-block added exactly 2", len(blocked) == 2, detail=str(blocked))
-        # The sample ipv6 'gggg::1' is INVALID (g is not a hex digit), so it should NOT be added.
-        _record("intel auto-block rejects invalid ipv6", "gggg::1" not in blocked,
-                detail=str(blocked))
+    """Reject threat-intel auto-block when authentication is bypassed."""
+    r = _run_cli(
+        ["intel", "--intel-source", "sample", "--intel-auto-block", "--offline"],
+        timeout=30,
+    )
+    output = r.stdout + r.stderr
+    _record(
+        "intel auto-block requires authentication",
+        r.returncode != 0 and "Authentication required" in output,
+    )
 
 
 def check_block_status_cli():
@@ -588,6 +643,8 @@ def main():
     check_capture_alert_threshold_exit()
     check_capture_alert_alert_file()
     check_lh_timeout_flag_accepted()
+    check_security_core()
+    check_input_hardening()
 
     print("=" * 70)
     print(f"Results: {len(PASS)} passed, {len(FAIL)} failed")
