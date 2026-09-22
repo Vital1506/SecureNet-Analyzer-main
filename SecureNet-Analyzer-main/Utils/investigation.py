@@ -2,8 +2,8 @@ import re
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
-from scapy.layers.inet import IP, TCP, UDP
-from scapy.layers.inet6 import IPv6
+from scapy.layers.inet import IP, TCP, UDP, ICMP
+from scapy.layers.inet6 import IPv6, ICMPv6
 from scapy.layers.dns import DNS, DNSQR
 try:
     from scapy.layers.http import HTTPRequest, HTTPResponse
@@ -185,7 +185,13 @@ def build_timeline(packets, detections=None):
                 "packet": number,
                 "source_ip": src,
                 "destination_ip": dst,
-                "protocol": "TCP" if TCP in packet else "UDP" if UDP in packet else "Other",
+                "protocol": (
+                    "TCP" if TCP in packet
+                    else "UDP" if UDP in packet
+                    else "ICMPv6" if ICMPv6 in packet
+                    else "ICMP" if ICMP in packet
+                    else "Other"
+                ),
                 "mitre": mappings,
                 "detections": detection_ids,
                 "iocs": iocs,
