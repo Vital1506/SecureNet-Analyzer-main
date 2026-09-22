@@ -2,7 +2,8 @@ import re
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
-from scapy.layers.inet import DNS, DNSQR, IP, TCP, UDP
+from scapy.layers.inet import IP, TCP, UDP
+from scapy.layers.dns import DNS, DNSQR
 from scapy.layers.http import HTTPRequest, HTTPResponse
 
 MITRE_RULES = (
