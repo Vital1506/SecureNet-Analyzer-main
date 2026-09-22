@@ -3,6 +3,7 @@ import os
 
 from scapy.all import wrpcap
 
+from Utils.blocklist import load_blocklist
 from Utils.analysis import (
     build_packet_analysis,
     extract_packet_info,
@@ -13,12 +14,13 @@ from Utils.analysis import (
 )
 
 
-def get_protocol_summary(captured_packets):
+def get_protocol_summary(captured_packets, blocked_ips=None):
     protocol_counts = {}
     suspicious_alerts = []
+    blocked_ips = set(load_blocklist()) if blocked_ips is None else set(blocked_ips)
 
     for packet in captured_packets:
-        result = build_packet_analysis(packet)
+        result = build_packet_analysis(packet, blocked_ips=blocked_ips)
         protocol = result['packet_info'].get('protocol_name', 'Unknown')
         protocol_counts[protocol] = protocol_counts.get(protocol, 0) + 1
         suspicious_alerts.extend(result['findings'])
@@ -26,8 +28,8 @@ def get_protocol_summary(captured_packets):
     return protocol_counts, suspicious_alerts
 
 
-def format_packet_report(packet, index):
-    result = build_packet_analysis(packet)
+def format_packet_report(packet, index, blocked_ips=None):
+    result = build_packet_analysis(packet, blocked_ips=blocked_ips)
     packet_info = result['packet_info']
     payload_data = result['payload_data']
     protocol_name = packet_info.get('protocol_name', 'Unknown')
@@ -62,7 +64,8 @@ def format_packet_report(packet, index):
 def save_to_txt(captured_packets, filename):
     filename = _ensure_directory(filename)
 
-    protocol_counts, suspicious_alerts = get_protocol_summary(captured_packets)
+    blocked_ips = load_blocklist()
+    protocol_counts, suspicious_alerts = get_protocol_summary(captured_packets, blocked_ips=blocked_ips)
     summary = get_security_summary(captured_packets)
 
     with open(filename, 'w', encoding='utf-8') as f:
@@ -99,7 +102,7 @@ def save_to_txt(captured_packets, filename):
             return
 
         for index, packet in enumerate(captured_packets, start=1):
-            f.write(format_packet_report(packet, index))
+            f.write(format_packet_report(packet, index, blocked_ips=blocked_ips))
 
     print(f"Packets saved to {filename}")
 
@@ -119,7 +122,7 @@ def save_to_html(captured_packets, filename):
     rows = []
 
     for index, packet in enumerate(captured_packets, start=1):
-        result = build_packet_analysis(packet)
+        result = build_packet_analysis(packet, blocked_ips=blocked_ips)
         packet_info = result['packet_info']
         payload_data = result['payload_data']
         findings = result['findings']
