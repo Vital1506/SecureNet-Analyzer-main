@@ -1,265 +1,158 @@
+<div align="center">
+
 # 🛡️ SecureNet Analyzer
 
-<p align="center">
-  <strong>Defensive Network Detection & Investigation Toolkit</strong><br>
-  Capture traffic • Investigate PCAPs • Detect suspicious behavior • Extract IOCs • Build incident evidence
+### **Defensive Network Detection • Investigation • Response**
+
+**Capture → Detect → Investigate → Report → Respond**
+
+<p>
+  <a href="https://github.com/Vital1506/SecureNet-Analyzer-main/actions/workflows/pylint.yml">
+    <img src="https://github.com/Vital1506/SecureNet-Analyzer-main/actions/workflows/pylint.yml/badge.svg" alt="CI">
+  </a>
+  <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
+  <img src="https://img.shields.io/badge/Focus-Network%20Security-red" alt="Network Security">
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
 </p>
 
-<p align="center">
+**A security-focused Python/Scapy platform for network visibility, behavioral detection, offline PCAP investigation, IOC extraction, threat intelligence, evidence generation, and controlled response.**
 
-![CI](https://github.com/Vital1506/SecureNet-Analyzer-main/actions/workflows/pylint.yml/badge.svg)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue)
-![Security](https://img.shields.io/badge/Focus-Network%20Security-red)
-![License](https://img.shields.io/badge/License-MIT-green)
-
-</p>
-
-> **Authorized use only.** SecureNet Analyzer is designed for defensive security work, education, and authorized assessments. Use packet capture, host discovery, and firewall controls only on systems and networks you own or have explicit permission to test.
+</div>
 
 ---
 
-## ⚡ What is SecureNet Analyzer?
+<div align="center">
 
-**SecureNet Analyzer** is a Python-based network security toolkit that connects packet collection, offline PCAP investigation, behavioral detection, threat intelligence, IOC extraction, incident reporting, and local response controls in one CLI workflow.
+> ⚠️ **AUTHORIZED SECURITY USE ONLY**  
+> Use packet capture, host discovery, traffic analysis, and firewall controls only on systems or networks you own or are explicitly authorized to assess.
 
-### Security Operations Flow
+</div>
+
+---
+
+<h2 align="center">🖥️ DIGITAL SOC OVERVIEW</h2>
+
+<div align="center">
+
+| 📡 COLLECTION | 🧠 DETECTION | 🔎 INVESTIGATION | 🛡️ RESPONSE |
+|:---:|:---:|:---:|:---:|
+| Live capture | SYN scan signals | IOC extraction | IP blocklist |
+| Offline PCAP | Beacon detection | Timeline | Windows Firewall |
+| Scapy | Risk scoring | Sessions | Threat intel |
+| Packet evidence | Severity + confidence | MITRE hypotheses | Audit trail |
+
+</div>
+
+### 🔄 Security Pipeline
+
+<div align="center">
 
 ```text
-NETWORK / PCAP
-      │
-      ▼
-┌───────────────────────┐
-│   Packet Collection   │
-│  Live Capture / PCAP  │
-└──────────┬────────────┘
+┌───────────────┐
+│  NETWORK/PCAP │
+└───────┬───────┘
+        ▼
+┌─────────────────────┐
+│  COLLECTION LAYER   │
+│ Scapy / PcapReader  │
+└──────────┬──────────┘
            ▼
-┌───────────────────────┐
-│   Packet & Flow Data  │
-│ IP • Port • Protocol  │
-└──────────┬────────────┘
+┌─────────────────────┐
+│ ANALYSIS & SCORING  │
+│ IP • Port • Proto   │
+└──────────┬──────────┘
            ▼
-┌───────────────────────┐
-│ Behavioral Detection  │
-│ Scan • Beacon Signals │
-└──────────┬────────────┘
+┌─────────────────────┐
+│ DETECTION ENGINE    │
+│ Scan • Beacon       │
+└──────────┬──────────┘
            ▼
-┌───────────────────────┐
-│ Investigation Layer   │
-│ IOC • Timeline • MITRE│
-│ Sessions • Risk Score │
-└──────────┬────────────┘
+┌─────────────────────┐
+│ INVESTIGATION       │
+│ IOC • Timeline      │
+│ Sessions • MITRE    │
+└──────────┬──────────┘
            ▼
-┌───────────────────────┐
-│ Evidence & Reports    │
-│ JSON • TXT • HTML     │
-│ SHA-256 • Custody     │
-└──────────┬────────────┘
+┌─────────────────────┐
+│ EVIDENCE & REPORTS  │
+│ JSON • TXT • HTML   │
+│ Hashes • Custody    │
+└──────────┬──────────┘
            ▼
-┌───────────────────────┐
-│ Optional Response     │
-│ Blocklist • Firewall  │
-└───────────────────────┘
+┌─────────────────────┐
+│ CONTROLLED RESPONSE │
+│ Blocklist/Firewall  │
+└─────────────────────┘
 ```
 
-The project is intentionally built as a **defensive investigation pipeline**, not as a collection of unrelated scripts.
+</div>
 
 ---
 
-## 🖥️ Project at a glance
+<h2 align="center">⚡ PROJECT AT A GLANCE</h2>
 
-| Layer | Current implementation |
-|---|---|
-| **Collection** | Scapy live packet capture and offline PCAP reading |
-| **Analysis** | IPs, protocols, ports, payload signals, risk scoring |
-| **Behavior Detection** | Horizontal SYN scan, vertical SYN scan, periodic web beaconing |
-| **Investigation** | Timeline, sessions, IOC extraction, MITRE ATT&CK hypothesis mapping |
+<div align="center">
+
+| Layer | Implementation |
+|:---|:---|
+| **Collection** | Scapy live packet capture + bounded offline PCAP reading |
+| **Analysis** | IP, protocol, ports, payload signals, risk scoring |
+| **Detection** | Horizontal SYN scan, vertical SYN scan, periodic web beaconing |
+| **Investigation** | Timeline, sessions, IOCs, MITRE ATT&CK hypothesis mapping |
 | **Threat Intelligence** | STIX2 ingestion with IPv4/IPv6 IOC extraction |
-| **Evidence** | SHA-256 evidence hashing and custody metadata |
-| **Response** | Local blocklist and Windows Firewall enforcement |
-| **Security Core** | Salted scrypt credentials, login throttling, bounded PCAP/payload processing, atomic state writes, hash-chained audit logging |
-| **Exports** | PCAP, TXT, HTML, JSON |
+| **Evidence** | SHA-256 evidence hashes + custody metadata |
+| **Response** | Local blocklist + Windows Firewall enforcement |
+| **Security Core** | Salted scrypt, login throttling, resource limits, atomic writes, hash-chained audit |
+| **Output** | PCAP, TXT, HTML, JSON |
 | **CI** | Regression tests, compile checks, Bandit, pip-audit, Pylint |
 
+</div>
+
 ---
 
-# ✨ Core capabilities
+<h2 align="center">✨ CORE FEATURES</h2>
 
-### 📡 Live packet capture
-Capture traffic from a selected interface and optionally analyze, summarize, save, alert, and generate investigation reports.
+<div align="center">
 
-### 📼 Offline PCAP investigation
-Load an existing PCAP without starting a live sniffer. Offline evidence passes through the same analysis and investigation layers.
+### 📡 LIVE NETWORK VISIBILITY
 
-### 🧠 Behavioral Detection Engine
-Current rules include:
+Capture traffic from an authorized interface and route it into analysis, detection, reporting, and evidence workflows.
 
-| Rule ID | Detection |
-|---|---|
+### 📼 OFFLINE PCAP FORENSICS
+
+Investigate existing evidence without starting a live sniffer.
+
+```text
+PCAP
+ ↓
+Size validation
+ ↓
+Packet limit
+ ↓
+PcapReader
+ ↓
+Analysis
+ ↓
+Detection
+ ↓
+Investigation
+ ↓
+Evidence package
+```
+
+### 🧠 BEHAVIORAL DETECTION
+
+Current detection rules:
+
+| Rule ID | Detects |
+|:---:|:---|
 | `NET-SCAN-001` | Horizontal TCP SYN scanning |
 | `NET-SCAN-002` | Vertical TCP SYN scanning |
 | `NET-BEACON-001` | Periodic web beaconing |
 
-Detections include evidence-linked observations such as rule ID, severity, confidence, timestamps, MITRE reference, and packet numbers.
+Detection records can include **rule ID, severity, confidence, timestamps, observations, MITRE reference, and packet evidence**.
 
-### 🎯 Investigation enrichment
-The investigation layer can build:
-
-```text
-Observed IP activity
-Sessions
-Timeline
-IOCs
-MITRE hypotheses
-Case summary
-Evidence hashes
-Custody metadata
-```
-
-### 📡 STIX2 threat intelligence
-Load STIX2 bundles, extract IPv4/IPv6 indicators, and optionally add IP indicators to the local blocklist.
-
-### 🔥 Response controls
-Maintain a validated local IP blocklist and, on Windows, enforce entries through Windows Firewall.
-
-Real firewall changes are protected by authentication, Administrator checks, explicit confirmation, and audit logging.
-
----
-
-# 🧩 Architecture
-
-```text
-                         ┌───────────────────────┐
-                         │     SecureNet CLI     │
-                         └───────────┬───────────┘
-                                     │
-                 ┌───────────────────┼───────────────────┐
-                 │                   │                   │
-                 ▼                   ▼                   ▼
-         ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-         │ Live Capture │    │ Offline PCAP │    │ Threat Intel │
-         │     c        │    │    pcap      │    │    intel     │
-         └──────┬───────┘    └──────┬───────┘    └──────┬───────┘
-                │                   │                   │
-                └───────────────────┼───────────────────┘
-                                    ▼
-                         ┌────────────────────┐
-                         │ Packet/State Layer │
-                         └─────────┬──────────┘
-                                   ▼
-                         ┌────────────────────┐
-                         │ Analysis & Scoring │
-                         └─────────┬──────────┘
-                                   ▼
-                         ┌────────────────────┐
-                         │ Detection Engine   │
-                         └─────────┬──────────┘
-                                   ▼
-                    ┌─────────────────────────────┐
-                    │ Investigation Enrichment   │
-                    │ IOC • Timeline • Sessions  │
-                    │ MITRE • Case Summary       │
-                    └──────────────┬──────────────┘
-                                   ▼
-                    ┌─────────────────────────────┐
-                    │ Incident Report Generator   │
-                    │ JSON • TXT • HTML           │
-                    └──────────────┬──────────────┘
-                                   │
-                         ┌─────────┴─────────┐
-                         ▼                   ▼
-                  Evidence + Audit      Optional Response
-                  SHA-256 + Custody    Blocklist + Firewall
-```
-
----
-
-# 🛠️ How the project is implemented
-
-## 1. Collection layer
-
-### Live capture
-
-```text
-Network interface
-      ↓
-     Scapy
-      ↓
-Captured packets
-      ↓
-Analysis / Alerting / Reporting
-```
-
-### Offline PCAP
-
-```text
-PCAP file
-   ↓
-File-size validation
-   ↓
-Packet-count limit
-   ↓
-PcapReader
-   ↓
-Analysis + Detection + Investigation
-   ↓
-Reports / Evidence
-```
-
-Default offline limits:
-
-```text
-PCAP file size: 512 MiB
-PCAP packets:   500,000
-Raw payload:    64 KiB
-```
-
-These controls reduce resource-exhaustion risk when handling untrusted evidence files.
-
----
-
-## 2. Analysis and risk scoring
-
-SecureNet examines packet-level signals such as:
-
-```text
-Source IP
-Destination IP
-Source port
-Destination port
-Protocol
-Traffic relationships
-Suspicious patterns
-Blocklist hits
-Behavioral detections
-```
-
-These signals contribute to the security summary and risk score.
-
----
-
-## 3. Behavioral detection
-
-The detection engine evaluates traffic over **time windows**, rather than treating every individual packet as a separate alert.
-
-Example:
-
-```text
-10.0.0.5 → 10.0.0.10:22   SYN
-10.0.0.5 → 10.0.0.11:22   SYN
-10.0.0.5 → 10.0.0.12:22   SYN
-10.0.0.5 → 10.0.0.13:22   SYN
-               │
-               ▼
-      Horizontal scan signal
-```
-
-The underlying packet numbers can be retained as evidence for the detection.
-
----
-
-## 4. Investigation layer
-
-Raw observations are transformed into structured case data:
+### 🎯 INVESTIGATION ENRICHMENT
 
 ```text
 Packets
@@ -267,124 +160,224 @@ Packets
   ├── Timeline
   ├── IOCs
   ├── MITRE hypotheses
-  └── Case summary
+  ├── Risk summary
+  └── Case metadata
 ```
 
-### Current IOC types
+### 📡 THREAT INTELLIGENCE
 
-```text
-IPv4
-IPv6
-Domains
-URLs
-Ports
-```
+Load STIX2 bundles, extract valid IPv4/IPv6 indicators, and optionally feed IP indicators into the local blocklist.
 
-### MITRE ATT&CK
+### 🔥 CONTROLLED RESPONSE
 
-Mappings are **heuristic investigation hypotheses** derived from observed traffic or payload patterns. They are not proof that an ATT&CK technique was successfully executed.
+Windows Firewall integration is protected by authentication, Administrator checks, explicit confirmation, and audit events.
+
+</div>
 
 ---
 
-# 🔐 Security architecture
+<h2 align="center">🏗️ ARCHITECTURE</h2>
 
-SecureNet is designed with the assumption that the security tool itself must also be protected.
+<div align="center">
 
-## Authentication
+```text
+                         ┌───────────────────────┐
+                         │     SecureNet CLI     │
+                         └───────────┬───────────┘
+                                     │
+                ┌────────────────────┼────────────────────┐
+                │                    │                    │
+                ▼                    ▼                    ▼
+        ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+        │ LIVE CAPTURE │     │ OFFLINE PCAP │     │ THREAT INTEL │
+        └──────┬───────┘     └──────┬───────┘     └──────┬───────┘
+               │                    │                    │
+               └────────────────────┼────────────────────┘
+                                    ▼
+                         ┌─────────────────────┐
+                         │ PACKET / STATE DATA │
+                         └──────────┬──────────┘
+                                    ▼
+                         ┌─────────────────────┐
+                         │ ANALYSIS & SCORING  │
+                         └──────────┬──────────┘
+                                    ▼
+                         ┌─────────────────────┐
+                         │ DETECTION ENGINE    │
+                         └──────────┬──────────┘
+                                    ▼
+                    ┌──────────────────────────────┐
+                    │ INVESTIGATION ENRICHMENT     │
+                    │ IOC • Timeline • Sessions    │
+                    │ MITRE • Risk • Case Summary  │
+                    └──────────────┬───────────────┘
+                                   ▼
+                    ┌──────────────────────────────┐
+                    │ INCIDENT REPORT GENERATOR    │
+                    │ HTML • TXT • JSON             │
+                    └──────────────┬───────────────┘
+                                   │
+                       ┌───────────┴───────────┐
+                       ▼                       ▼
+                ┌──────────────┐       ┌──────────────┐
+                │ EVIDENCE     │       │ RESPONSE     │
+                │ Hash + Audit │       │ Block/Firewall│
+                └──────────────┘       └──────────────┘
+```
 
-Passwords are stored using salted **scrypt** verifiers.
+</div>
+
+---
+
+<h2 align="center">🔐 SECURITY ENGINEERING</h2>
+
+<div align="center">
+
+| Control | Implementation |
+|:---|:---|
+| 🔑 **Authentication** | Salted scrypt password verification |
+| 🚦 **Login Protection** | Maximum 5 attempts + progressive delay |
+| 📦 **PCAP Safety** | 512 MiB default file limit + 500,000 packet limit |
+| 🧩 **Payload Safety** | Raw payload analysis capped at 64 KiB |
+| 💾 **State Integrity** | Atomic credential/blocklist writes |
+| 🧾 **Audit Integrity** | Local hash-chained audit events |
+| 🔥 **Firewall Safety** | Authentication + Administrator + `--confirm-firewall` |
+| 🌐 **Offline Isolation** | Reverse DNS enrichment disabled by default |
+| 🛡️ **CI Security** | Bandit + pip-audit + tests + compile + Pylint |
+
+</div>
+
+### 🔑 Authentication Flow
+
+<div align="center">
 
 ```text
 Password
    ↓
-Random salt
+Random Salt
    ↓
 scrypt KDF
    ↓
-Stored verifier
+Stored Verifier
 
-Failed login
+Failed Login
    ↓
-Progressive delay
+Progressive Delay
    ↓
-Maximum 5 attempts
+Maximum 5 Attempts
 ```
 
-Legacy SHA-256 password records are upgraded after a successful authentication.
+</div>
 
-## Privilege boundaries
+### 🧾 Tamper-Evident Audit
+
+<div align="center">
 
 ```text
-Live capture              → authentication required
-Live host detection       → authentication required
-Blocklist mutation        → authentication required
-Firewall enforcement      → authentication + confirmation
-Intel auto-block          → authentication required
-Read-only offline work   → --offline may be used
+EVENT 1 ──hash──► EVENT 2 ──hash──► EVENT 3
+                         │
+                         ▼
+                  audit-verify
 ```
 
-The `--offline` switch does **not** bypass authentication for state-changing or privileged operations.
+</div>
 
-## Firewall protection
-
-Real Windows Firewall changes require:
-
-```text
-Authenticated user
-      +
-Administrator privileges
-      +
---confirm-firewall
-```
-
-Use `--dry-run` before enforcing rules.
-
-## Atomic state writes
-
-Credential and blocklist state changes are written atomically to reduce the risk of corrupted runtime files.
-
-## Tamper-evident audit chain
-
-Security-sensitive actions are written to a local hash-chained audit log:
-
-```text
-EVENT 1
-  │ previous hash
-  ▼
-EVENT 2
-  │ previous hash
-  ▼
-EVENT 3
-```
-
-Changing an earlier event breaks the chain.
-
-Verify it with:
+Verify:
 
 ```bash
 python Main.py audit-verify --offline
 ```
 
-This is **tamper-evident local auditing**, not a replacement for external immutable logging.
+> Local hash chaining provides tamper evidence. It is not a substitute for an external immutable log or digital signature system.
 
-## Offline DNS behavior
+---
 
-Reverse-DNS enrichment is disabled by default during report generation.
+<h2 align="center">🛠️ IMPLEMENTATION</h2>
 
-Enable it explicitly with:
+### 01 — Collection
 
 ```text
---resolve-hostnames
+Network Interface
+       ↓
+Scapy Capture
+       ↓
+Packets
+       ↓
+Analysis / Detection / Reporting
+```
+
+### 02 — Bounded Offline Investigation
+
+```text
+Evidence PCAP
+     ↓
+Validate Size
+     ↓
+Limit Packets
+     ↓
+Stream with PcapReader
+     ↓
+Analyze
+     ↓
+Detect
+     ↓
+Investigate
+```
+
+Default limits:
+
+```text
+Maximum PCAP size   : 512 MiB
+Maximum PCAP packets: 500,000
+Maximum raw payload : 64 KiB
+```
+
+### 03 — Behavioral Detection
+
+The detection engine evaluates **traffic over time windows**, allowing repeated or distributed observations to become investigation signals instead of treating every packet as an isolated event.
+
+### 04 — Investigation
+
+```text
+Traffic
+  ↓
+Observed IPs / Ports / Protocols
+  ↓
+Sessions + Timeline
+  ↓
+IOC Extraction
+  ↓
+MITRE Hypotheses
+  ↓
+Incident Case
+```
+
+### 05 — Evidence
+
+Generated investigation packages can contain:
+
+```text
+Case metadata
+Security events
+Detections
+Sessions
+Timeline
+IOCs
+MITRE mappings
+Evidence SHA-256 hashes
+Custody metadata
+Case summary
 ```
 
 ---
 
-# 📂 Repository structure
+<h2 align="center">📂 PROJECT STRUCTURE</h2>
 
-The GitHub repository contains the project in the inner `SecureNet-Analyzer-main/` directory.
+<div align="center">
 
 ```text
 SecureNet-Analyzer-main/
+│
 ├── README.md
 ├── .github/
 │   └── workflows/
@@ -412,24 +405,16 @@ SecureNet-Analyzer-main/
         ├── intel.py
         ├── investigation.py
         ├── save.py
-        ├── security.py
-        └── sample_intel.stix2.json
+        └── security.py
 ```
 
-Runtime files such as credentials, blocklists, reports, and audit logs should be treated as deployment data and should not be committed as secrets.
+</div>
 
 ---
 
-# 💻 Installation
+<h2 align="center">💻 INSTALLATION</h2>
 
-## Requirements
-
-- Python 3.10, 3.11, or 3.12
-- Scapy
-- mac-vendor-lookup
-- colorama
-
-## Windows
+### Windows
 
 ```powershell
 git clone https://github.com/Vital1506/SecureNet-Analyzer-main.git
@@ -444,9 +429,9 @@ python -m pip install -r requirements.txt
 python Main.py --help
 ```
 
-Use an elevated PowerShell / VS Code session for functionality that requires Windows Administrator privileges.
+Use an elevated PowerShell / VS Code session when the requested operation requires Administrator privileges.
 
-## Linux / macOS
+### Linux / macOS
 
 ```bash
 git clone https://github.com/Vital1506/SecureNet-Analyzer-main.git
@@ -460,25 +445,27 @@ python -m pip install -r requirements.txt
 python Main.py --help
 ```
 
-Use `sudo` only when your operating system requires elevation for the requested operation.
-
 ---
 
-# 🎮 CLI command map
+<h2 align="center">🎮 CLI COMMAND CENTER</h2>
 
-| Command | Purpose | Access |
-|---|---|---|
-| `c` | Live packet capture and analysis | Authenticated |
+<div align="center">
+
+| Command | Function | Access |
+|:---:|:---|:---|
+| `c` | Live packet capture + analysis | Authenticated |
 | `pcap` | Offline PCAP investigation | Offline-safe |
 | `lh` | Live host detection | Authenticated |
-| `block` | Local blocklist management | Mutations require authentication |
-| `block-activate` | Enforce the blocklist with Windows Firewall | Auth + Administrator + confirmation |
-| `block-deactivate` | Remove tool-created firewall rules | Auth + Administrator + confirmation |
-| `block-status` | Inspect firewall block state | Read-only |
+| `block` | Local blocklist management | Mutations require auth |
+| `block-activate` | Windows Firewall enforcement | Auth + Admin + confirmation |
+| `block-deactivate` | Remove SecureNet firewall rules | Auth + Admin + confirmation |
+| `block-status` | Firewall state inspection | Read-only |
 | `audit-verify` | Verify audit-chain integrity | Offline-safe |
-| `intel` | Load STIX2 threat intelligence | Read-only unless auto-blocking |
+| `intel` | STIX2 threat intelligence | Read-only unless auto-block |
 
-See the exact CLI contract at:
+</div>
+
+Run the exact current CLI contract:
 
 ```bash
 python Main.py --help
@@ -486,369 +473,155 @@ python Main.py --help
 
 ---
 
-# 🚀 Usage examples
+<h2 align="center">🚀 USAGE</h2>
 
-## 1. Offline PCAP investigation
-
-### Windows
-
-```powershell
-python Main.py pcap --input evidence_CASE001.pcap --summary --report-prefix reports\CASE001 --case-id CASE-001 --analyst "Security Analyst" --organization "Example SOC" --offline
-```
-
-### Linux / macOS
+### Offline PCAP Investigation
 
 ```bash
 python Main.py pcap --input evidence_CASE001.pcap --summary --report-prefix reports/CASE001 --case-id CASE-001 --analyst "Security Analyst" --organization "Example SOC" --offline
 ```
 
-The investigation can generate:
-
-```text
-HTML report
-TXT report
-JSON case data
-```
-
-including detections, sessions, timeline, IOCs, MITRE hypotheses, evidence hashes, and custody metadata.
-
----
-
-## 2. Live capture
+### Live Capture
 
 ```bash
 python Main.py c --i WiFi --pc 50 --a --summary --s --p captured_traffic.pcap
 ```
 
----
-
-## 3. Filter traffic
+### Traffic Filtering
 
 ```bash
 python Main.py c --pc 100 --f "tcp and dst port 22" --a --summary
 ```
 
-Supported filter clauses:
-
-```text
-src host <ip>
-dst host <ip>
-src port <n>
-dst port <n>
-tcp
-udp
-icmp
-icmp6
-ip
-ipv6
-```
-
-Multiple clauses can be joined with `and`.
-
-Example:
-
-```text
-src host 10.0.0.5 and dst port 443
-```
-
----
-
-## 4. Live host detection
+### Live Host Detection
 
 ```bash
 python Main.py lh --ip 192.168.1.10 --timeout 3 --max-hosts 50
 ```
 
-Use only on an authorized network.
-
----
-
-## 5. Local blocklist
-
-### List without changing state
-
-```bash
-python Main.py block --list-blocks --offline
-```
-
-### Add an IP
-
-```bash
-python Main.py block --block 10.0.0.5
-```
-
-### Remove an IP
-
-```bash
-python Main.py block --unblock 10.0.0.5
-```
-
-### Clear the blocklist
-
-```bash
-python Main.py block --clear-blocks
-```
-
-All blocklist entries are validated and normalized as IPv4/IPv6 addresses.
-
----
-
-## 6. Windows Firewall
-
-### Dry run
-
-```bash
-python Main.py block-activate --dry-run
-```
-
-### Real enforcement
-
-```bash
-python Main.py block-activate --confirm-firewall
-```
-
-### Status
-
-```bash
-python Main.py block-status
-```
-
-### Remove SecureNet firewall rules
-
-```bash
-python Main.py block-deactivate --confirm-firewall
-```
-
-Real changes require authentication and Administrator privileges.
-
----
-
-## 7. STIX2 threat intelligence
-
-Use the bundled sample:
+### STIX2 Threat Intelligence
 
 ```bash
 python Main.py intel --intel-source sample --offline
 ```
 
-Load a custom bundle:
-
-```bash
-python Main.py intel --intel-source my_threats.stix2.json
-```
-
-Enable automatic addition of valid IP indicators to the blocklist:
-
-```bash
-python Main.py intel --intel-source my_threats.stix2.json --intel-auto-block
-```
-
-Threat-intelligence data should be reviewed before enforcement in production.
-
----
-
-## 8. Audit verification
+### Audit Verification
 
 ```bash
 python Main.py audit-verify --offline
 ```
 
-Expected valid result:
+---
 
-```text
-Audit log valid: <N> event(s) verified.
-```
+<h2 align="center">📊 INCIDENT REPORTS</h2>
+
+<div align="center">
+
+| Output | Purpose |
+|:---:|:---|
+| 🟣 **HTML** | Analyst-friendly investigation report |
+| 🔵 **TXT** | Lightweight case handoff / archive |
+| 🟢 **JSON** | Structured automation / SIEM-oriented data |
+
+</div>
+
+The JSON case package can contain case metadata, observed IP activity, security events, detections, sessions, timeline data, IOCs, MITRE mappings, evidence hashes, custody metadata, and a case summary.
 
 ---
 
-# 📊 Incident report package
+<h2 align="center">🧪 CI / QUALITY GATES</h2>
 
-When `--report-prefix` is provided, SecureNet can create:
-
-| Format | Purpose |
-|---|---|
-| **HTML** | Analyst-friendly investigation report |
-| **TXT** | Lightweight case handoff / archive |
-| **JSON** | Structured data for automation and SIEM-oriented workflows |
-
-The case package can include:
+<div align="center">
 
 ```text
-Case metadata
-Observed IP activity
-Security events
-Behavioral detections
-Sessions
-Timeline
-IOCs
-MITRE mappings
-Evidence SHA-256 hashes
-Custody metadata
-Case summary
+PYTHON 3.10 ─┐
+PYTHON 3.11 ─┼─► REGRESSION TESTS
+PYTHON 3.12 ─┘       │
+                      ├── Compile Checks
+                      ├── Bandit
+                      ├── pip-audit
+                      └── Pylint
 ```
 
-**Important:** findings and MITRE mappings are analyst-supporting signals, not proof of compromise or attribution.
+**Phase 3 secure-core verification:** 161 automated checks passed with 0 failures before merge.
+
+</div>
 
 ---
 
-# 🧪 Verification & CI
+<h2 align="center">🧭 DEVELOPMENT ROADMAP</h2>
 
-GitHub Actions validates the project against:
+<div align="center">
 
-```text
-Python 3.10
-Python 3.11
-Python 3.12
-```
+| Status | Phase | Focus |
+|:---:|:---|:---|
+| ✅ | Phase 1 | Behavioral Detection Foundation |
+| ✅ | Phase 2 | Offline PCAP Investigation |
+| ✅ | Phase 3 | Secure Core Hardening |
+| 🔜 | Phase 4 | Stateful Flow Engine |
+| 🔜 | Phase 5 | DNS / HTTP / TLS Intelligence |
+| 🔜 | Phase 6 | Advanced Detections + Correlation |
+| 🔜 | Phase 7 | Asset Inventory + Network Graph |
+| 🔜 | Phase 8 | Case Management |
+| 🔜 | Phase 9 | SOC Web Dashboard |
+| 🔜 | Phase 10 | Evidence-Grounded AI Investigation |
 
-The pipeline checks:
+</div>
 
-```text
-✅ Automated regression tests
-✅ Python compile checks
-✅ Bandit security scan
-✅ pip-audit dependency audit
-✅ Pylint
-```
-
-The merged Phase 3 secure-core implementation passed **161 automated tests with 0 failures**, and the post-merge `main` workflow also completed successfully.
-
----
-
-# 🧭 Development roadmap
-
-### ✅ Phase 1 — Behavioral Detection Foundation
-- Horizontal / vertical TCP SYN scan detection
-- Periodic web beacon detection
-- Evidence-linked findings
-- Severity and confidence
-- MITRE references
-
-### ✅ Phase 2 — Offline PCAP Investigation
-- PCAP investigation mode
-- IOC extraction
-- Sessions
-- Timeline
-- Investigation enrichment
-- Incident package generation
-
-### ✅ Phase 3 — Secure Core Hardening
-- Salted scrypt password storage
-- Failed-login throttling
-- Authentication boundaries
-- PCAP resource limits
-- Payload limits
-- Atomic state writes
-- Tamper-evident audit logging
-- Offline DNS isolation
-- CI security checks
-
-### 🔜 Next engineering targets
-
-```text
-Stateful flow engine
-      ↓
-DNS / HTTP / TLS metadata
-      ↓
-Brute-force / slow-scan / exfiltration detections
-      ↓
-Attack-chain correlation
-      ↓
-Asset inventory + network graph
-      ↓
-Case management
-      ↓
-SOC web dashboard
-      ↓
-Evidence-grounded AI investigation
-```
+> **Important:** The current application is CLI-driven. A full graphical SOC dashboard is part of the planned evolution, not a claim about the current implementation.
 
 ---
 
-# 🧰 Troubleshooting
+<h2 align="center">🔬 ANALYTICAL LIMITATIONS</h2>
 
-| Problem | Solution |
-|---|---|
-| `can't open file 'Main.py'` | Enter the inner `SecureNet-Analyzer-main` directory |
-| `option` argument is required | Run `python Main.py --help` and select a supported mode |
-| Permission denied | Use the required OS privileges for the operation |
-| Interface not found | Check the interface name and use the exact value |
-| PCAP rejected | Check `--max-pcap-mb` and `--max-pcap-packets` |
-| Hostname not shown | Reverse DNS is disabled by default; use `--resolve-hostnames` when needed |
-| Firewall change refused | Authenticate, use Administrator context, and provide `--confirm-firewall` |
-| Audit verification fails | Preserve the current log and investigate the first broken event |
+<div align="center">
 
----
+**SecureNet produces defensive investigation signals — not automatic proof of compromise.**
 
-# 🔬 Analytical limitations
+</div>
 
-SecureNet provides **defensive security signals**, not automatic proof of compromise.
-
-- A high risk score is not by itself proof of an attack.
+- A risk score alone is not proof of an attack.
 - MITRE mappings are heuristic investigation hypotheses.
-- An IP address alone does not establish ownership or attacker attribution.
-- Threat-intelligence feeds may contain stale or incorrect indicators.
-- Firewall enforcement can block legitimate traffic if a decision is wrong.
-- Live capture and discovery depend on operating-system and network permissions.
-- The current project is not a full enterprise SIEM, EDR, or forensic evidence-management platform.
-
-For high-assurance investigations, preserve original evidence and use controlled, preferably external and immutable evidence/logging processes in addition to the local features provided here.
+- An IP address alone does not establish attacker identity or attribution.
+- Threat-intelligence data can be stale, incorrect, or malicious.
+- Firewall decisions can disrupt legitimate traffic when an IOC is wrong.
+- Live capture and host discovery depend on OS and network permissions.
+- The current release is not a full enterprise SIEM, EDR, or forensic evidence-management platform.
 
 ---
 
-# 🤝 Contributing
-
-Create a feature branch:
+<h2 align="center">🤝 CONTRIBUTING</h2>
 
 ```bash
 git checkout -b feature/my-improvement
-```
-
-Run verification before opening a pull request:
-
-```bash
 python test_all.py
 python -m compileall -q Main.py Utils
 ```
 
-Pull requests should explain the change, security impact, and test evidence.
+Security-sensitive changes should include tests and CI evidence before merge.
 
 ---
 
-# 📜 Authorized use
+<div align="center">
 
-This repository is intended for **educational and authorized defensive security use**.
+## 👤 AUTHOR
 
-Do not use SecureNet Analyzer against networks, devices, traffic, or systems without explicit permission from the owner. The end user is responsible for complying with applicable laws, contracts, organizational policies, and rules of engagement.
+**Vittal Karthikeyan**
 
----
+[GitHub @Vital1506](https://github.com/Vital1506)
 
-# 📄 License
+[SecureNet Analyzer Repository](https://github.com/Vital1506/SecureNet-Analyzer-main)
 
-MIT License. See [LICENSE](LICENSE).
+**Built for defenders. Evidence first. Secure by design.**
 
----
-
-# 🙌 Acknowledgements
-
-- [Scapy](https://scapy.net/) — packet manipulation and capture
-- [Wireshark](https://www.wireshark.org/) — companion PCAP analysis
-- mac-vendor-lookup — MAC/OUI vendor enrichment
-- colorama — terminal output support
+</div>
 
 ---
 
-## 👤 Author
+<div align="center">
 
-**Vittal Karthikeyan mannuri**
+### 📜 LICENSE
 
-GitHub: [@Vital1506](https://github.com/Vital1506)
+MIT License
 
-Project: [SecureNet-Analyzer-main](https://github.com/Vital1506/SecureNet-Analyzer-main)
-Email : [vitalkarthikyeyanmannuri@gmail.com]
-
----
-
-<p align="center">
-  <strong>Built for defenders. Evidence first. Secure by design.</strong>
-</p>
+</div>
