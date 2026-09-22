@@ -2,13 +2,14 @@ import ipaddress
 import re
 
 from scapy.all import IP, IPv6, TCP, UDP, ICMP
+from scapy.layers.inet6 import ICMPv6
 
 
 IPV4_CONDITION_RE = re.compile(
-    r"(?P<direction>src|dst)\s+host\s+(?P<ip>\S+)"
+    r"(?P<direction>src|dst)\s+host\s+(?P<ip>\S+)", re.IGNORECASE
 )
 PORT_CONDITION_RE = re.compile(
-    r"(?P<direction>src|dst)\s+port\s+(?P<port>\d+)"
+    r"(?P<direction>src|dst)\s+port\s+(?P<port>\d+)", re.IGNORECASE
 )
 PROTOCOL_CONDITION_RE = re.compile(
     r"(?P<protocol>tcp|udp|icmp|icmp6|ip|ipv6)\b", re.IGNORECASE
@@ -92,6 +93,8 @@ def _protocol_name(packet):
         return 'tcp'
     if packet.haslayer(UDP):
         return 'udp'
+    if packet.haslayer(ICMPv6):
+        return 'icmp6'
     if packet.haslayer(ICMP):
         return 'icmp'
     if packet.haslayer(IPv6):
