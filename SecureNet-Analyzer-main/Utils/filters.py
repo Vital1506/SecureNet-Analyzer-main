@@ -80,8 +80,13 @@ def packet_filter(packet, filter_criteria):
 
     if 'protocol' in filter_criteria:
         expected = filter_criteria['protocol'].lower()
-        protocol_name = _protocol_name(packet)
-        if protocol_name != expected:
+        if expected == 'ip':
+            if not has_ip:
+                return False
+        elif expected == 'ipv6':
+            if not has_ipv6:
+                return False
+        elif _protocol_name(packet) != expected:
             return False
 
     return True
