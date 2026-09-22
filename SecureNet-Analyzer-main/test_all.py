@@ -118,6 +118,7 @@ def check_filters():
     ipv6_icmp = Ether()/IPv6(src="2001:db8::1", dst="2001:db8::2", nh=58)/Raw(load=b"icmpv6")
     _record("filter matches protocol icmp6", packet_filter(ipv6_icmp, {"protocol": "icmp6"}))
     _record("filter rejects protocol tcp for icmp6", not packet_filter(ipv6_icmp, {"protocol": "tcp"}))
+    _record("filter matches IPv6 layer", packet_filter(ipv6_icmp, {"protocol": "ipv6"}))
 
     # Build a synthetic TCP packet and confirm filtering logic.
     pkt = Ether()/IP(src="10.0.0.1", dst="192.168.1.10")/TCP(sport=12345, dport=80)
@@ -126,6 +127,8 @@ def check_filters():
     _record("filter matches dst_port", packet_filter(pkt, {"dst_port": 80}))
     _record("filter rejects wrong dst_port", not packet_filter(pkt, {"dst_port": 443}))
     _record("filter matches protocol tcp", packet_filter(pkt, {"protocol": "tcp"}))
+    _record("filter matches IPv4 layer", packet_filter(pkt, {"protocol": "ip"}))
+    _record("filter rejects IPv6 layer for IPv4 packet", not packet_filter(pkt, {"protocol": "ipv6"}))
     _record("filter rejects protocol udp", not packet_filter(pkt, {"protocol": "udp"}))
     _record("filter None accepts all", packet_filter(pkt, None))
     _record("filter empty dict accepts all", packet_filter(pkt, {}))
