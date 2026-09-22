@@ -139,6 +139,15 @@ def generate_incident_report(packets, prefix, case_id="UNASSIGNED",
                 "sha256": _sha256(path)
             })
 
+    chain_of_custody = [{
+        "timestamp": dataset["generated_at"],
+        "action": "REPORT_GENERATED",
+        "actor": analyst,
+        "case_id": case_id,
+        "evidence": [item["path"] for item in evidence],
+        "note": "Automated report generation record; preserve original evidence and formal custody records separately."
+    }]
+
     report = {
         "metadata": {
             "case_id": case_id,
@@ -155,7 +164,8 @@ def generate_incident_report(packets, prefix, case_id="UNASSIGNED",
         "sessions": dataset["sessions"],
         "timeline": dataset["timeline"],
         "case_summary": dataset["case_summary"],
-        "evidence": evidence
+        "evidence": evidence,
+        "chain_of_custody": chain_of_custody
     }
 
     with open(paths["json"], "w", encoding="utf-8") as handle:
@@ -213,6 +223,9 @@ def generate_incident_report(packets, prefix, case_id="UNASSIGNED",
         for event in dataset["timeline"]:
             techniques = ", ".join(x["technique_id"] for x in event["mitre"]) or "None"
             handle.write(f"{event['timestamp']} | Packet {event['packet']} | {event['source_ip']} -> {event['destination_ip']} | MITRE: {techniques}\n")
+        handle.write("\nCHAIN OF CUSTODY\n" + "-" * 78 + "\n")
+        for entry in chain_of_custody:
+            handle.write(f"{entry['timestamp']} | {entry['action']} | {entry['actor']} | {entry['note']}\n")
         handle.write("\nEVIDENCE INTEGRITY\n" + "-" * 78 + "\n")
         for item in evidence:
             handle.write(f"File: {item['path']}\nSize: {item['size_bytes']} bytes\nSHA-256: {item['sha256']}\n")
