@@ -4,7 +4,10 @@ from datetime import datetime, timezone
 
 from scapy.layers.inet import IP, TCP, UDP
 from scapy.layers.dns import DNS, DNSQR
-from scapy.layers.http import HTTPRequest, HTTPResponse
+try:
+    from scapy.layers.http import HTTPRequest, HTTPResponse
+except ImportError:
+    HTTPRequest = HTTPResponse = None
 
 MITRE_RULES = (
     ("T1046", "Network Service Scanning", "TCP SYN traffic concentrated on sensitive/service ports"),
@@ -73,7 +76,7 @@ def mitre_mappings(packet, payload=""):
         mappings.append({"technique_id": tid, "technique": name, "reason": f"Traffic targeted TCP/{dst_port}"})
     if packet.haslayer(DNS) or packet.haslayer(DNSQR):
         mappings.append({"technique_id": "T1071.004", "technique": "Application Layer Protocol: DNS", "reason": "DNS activity observed"})
-    if packet.haslayer(HTTPRequest) or packet.haslayer(HTTPResponse):
+    if (HTTPRequest and packet.haslayer(HTTPRequest)) or (HTTPResponse and packet.haslayer(HTTPResponse)):
         mappings.append({"technique_id": "T1071.001", "technique": "Application Layer Protocol: Web Protocols", "reason": "HTTP metadata observed"})
     for tid, pattern in SUSPICIOUS_PATTERNS.items():
         if pattern.search(payload or ""):
