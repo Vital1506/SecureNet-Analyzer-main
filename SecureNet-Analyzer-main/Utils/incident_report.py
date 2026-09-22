@@ -113,6 +113,7 @@ def build_incident_dataset(packets):
     }
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def generate_incident_report(packets, prefix, case_id="UNASSIGNED",
                              analyst="Not specified",
                              organization="Not specified",
