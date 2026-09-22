@@ -14,6 +14,7 @@ import os
 import sys
 import tempfile
 import subprocess
+import json
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = BASE_DIR
@@ -268,6 +269,45 @@ def check_cli_capture_arg_validation():
             "Provide --pc" in (r.stdout + r.stderr))
 
 
+def check_incident_reporting():
+    from Utils.incident_report import generate_incident_report
+    from scapy.all import Ether, IP, TCP, Raw
+
+    pkt = Ether()/IP(src="10.0.0.5", dst="10.0.0.10")/TCP(sport=5000, dport=22, flags="S")/Raw(load=b"cmd.exe /c whoami")
+    pkt.time = 1763276400.0
+
+    with tempfile.TemporaryDirectory() as td:
+        pcap_path = os.path.join(td, "evidence.pcap")
+        report_prefix = os.path.join(td, "incident")
+        from scapy.all import wrpcap
+        wrpcap(pcap_path, [pkt])
+
+        paths = generate_incident_report(
+            [pkt],
+            report_prefix,
+            case_id="TEST-001",
+            analyst="CI",
+            organization="SecureNet Test",
+            interface="test0",
+            evidence_files=[pcap_path],
+        )
+
+        _record("incident report creates json", os.path.exists(paths["json"]))
+        _record("incident report creates txt", os.path.exists(paths["txt"]))
+        _record("incident report creates html", os.path.exists(paths["html"]))
+
+        data = json.load(open(paths["json"], encoding="utf-8"))
+        _record("incident report records observed IP", data["observed_ips"][0]["ip"] in {"10.0.0.5", "10.0.0.10"})
+        _record("incident report records case id", data["metadata"]["case_id"] == "TEST-001")
+        _record("incident report records evidence hash", len(data["evidence"][0]["sha256"]) == 64)
+
+        txt = open(paths["txt"], encoding="utf-8").read()
+        html_report = open(paths["html"], encoding="utf-8").read()
+        _record("incident report txt contains IP activity", "OBSERVED IP ACTIVITY" in txt)
+        _record("incident report html contains IP activity", "Observed IP Activity" in html_report)
+        _record("incident report html contains findings", "cmd.exe" in html_report)
+
+
 def check_analysis_reuse():
     """
     Confirm that the save paths and the --a print path all derive from the
@@ -319,7 +359,8 @@ def check_new_cli_options_help():
     combined = r.stdout + r.stderr
     for needle in ["block-activate", "block-deactivate", "block-status", "intel",
                    "--dry-run", "--timeout", "--max-hosts", "--intel-source",
-                   "--intel-auto-block", "--alert-on", "--alert-file", "--alert-exit"]:
+                   "--intel-auto-block", "--alert-on", "--alert-file", "--alert-exit",
+                   "--report-prefix", "--case-id", "--analyst", "--organization"]:
         ok, detail = _assert_contains(combined, needle, label="help output")
         _record(f"help mentions {needle}", ok, detail=detail)
 
@@ -430,6 +471,7 @@ def main():
     check_cli_block_commands()
     check_cli_capture_arg_validation()
     check_analysis_reuse()
+    check_incident_reporting()
     check_capture_module_smoke()
     check_host_detector_import()
     check_offline_flag_rejects_login_prompt()
