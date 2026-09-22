@@ -16,3 +16,5 @@ security_report_demo.html
 __pycache__/
 *.pyc
 *.pyo
+
+audit.log
