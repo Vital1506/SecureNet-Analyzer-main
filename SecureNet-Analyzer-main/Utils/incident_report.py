@@ -111,7 +111,7 @@ def build_incident_dataset(packets, resolve_hostnames=False):
     records.sort(key=lambda x: (x["blocklist_hits"], x["packets"]), reverse=True)
     detections = run_detections(packets)
     return {
-        "summary": get_security_summary(packets),
+        "summary": get_security_summary(packets, detections=detections),
         "hosts": records,
         "events": events,
         "sessions": build_sessions(packets),
