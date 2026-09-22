@@ -3,43 +3,47 @@ from datetime import datetime
 
 from scapy.all import IP, TCP, UDP, ICMP, IPv6, Raw
 
-from Utils.blocklist import is_blocked_ip
+from Utils.blocklist import is_blocked_ip, load_blocklist
 from Utils.detection_engine import run_detections
 
 MAX_ANALYSIS_PAYLOAD_BYTES = 64 * 1024
 
 
-def calculate_risk_score(captured_packets):
+def calculate_risk_score(captured_packets, detections=None):
     packet_score = 0
+    blocked_ips = set(load_blocklist())
+
     for packet in captured_packets:
         payload_data = extract_payload_data(packet)
         findings = detect_suspicious_activity(packet, payload_data)
         packet_score += len(findings) * 20
 
         packet_info = extract_packet_info(packet)
-        src_ip = packet_info.get('src_ip')
-        dst_ip = packet_info.get('dst_ip')
-        if src_ip and is_blocked_ip(src_ip):
+        src_ip = packet_info.get("src_ip")
+        dst_ip = packet_info.get("dst_ip")
+        if src_ip and src_ip in blocked_ips:
             packet_score += 35
-        if dst_ip and is_blocked_ip(dst_ip):
+        if dst_ip and dst_ip in blocked_ips:
             packet_score += 35
 
     score = min(packet_score, 70)
     severity_weights = {'LOW': 8, 'MEDIUM': 16, 'HIGH': 28, 'CRITICAL': 40}
-    for detection in run_detections(captured_packets):
+    detections = run_detections(captured_packets) if detections is None else detections
+    for detection in detections:
         weight = severity_weights.get(detection['severity'], 10)
         score += weight + round(12 * detection['confidence'])
 
     return min(score, 100)
 
 
-def get_security_summary(captured_packets):
+def get_security_summary(captured_packets, detections=None):
     packet_info_list = [extract_packet_info(packet) for packet in captured_packets]
     source_ips = Counter(info.get('src_ip') for info in packet_info_list if info.get('src_ip'))
     dest_ips = Counter(info.get('dst_ip') for info in packet_info_list if info.get('dst_ip'))
     suspicious_events = 0
     blocked_hits = 0
     top_ports = Counter()
+    blocked_ips = set(load_blocklist())
 
     for packet in captured_packets:
         payload_data = extract_payload_data(packet)
@@ -49,9 +53,9 @@ def get_security_summary(captured_packets):
         packet_info = extract_packet_info(packet)
         src_ip = packet_info.get('src_ip')
         dst_ip = packet_info.get('dst_ip')
-        if src_ip and is_blocked_ip(src_ip):
+        if src_ip and src_ip in blocked_ips:
             blocked_hits += 1
-        if dst_ip and is_blocked_ip(dst_ip):
+        if dst_ip and dst_ip in blocked_ips:
             blocked_hits += 1
 
         if 'src_port' in packet_info:
@@ -59,8 +63,8 @@ def get_security_summary(captured_packets):
         if 'dst_port' in packet_info:
             top_ports[packet_info.get('dst_port')] += 1
 
-    detections = run_detections(captured_packets)
-    risk_score = calculate_risk_score(captured_packets)
+    detections = run_detections(captured_packets) if detections is None else detections
+    risk_score = calculate_risk_score(captured_packets, detections=detections)
     highest_confidence = max((item['confidence'] for item in detections), default=0.0)
     if risk_score >= 80:
         risk_level = 'CRITICAL'
