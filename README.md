@@ -440,6 +440,49 @@ SecureNet-Analyzer-main/
 
 ---
 
+<h2 align="center">🧩 COMPLETE CODE / MODULE MAP</h2>
+
+<div align="center">
+
+| Source file | What the code implements |
+|:---|:---|
+| `Main.py` | CLI orchestration, authentication, command routing, offline PCAP limits, login throttling, threshold alerts, reporting, blocklist/firewall/intel actions |
+| `Utils/capture.py` | Scapy interface discovery, live sniffing, packet callback, packet filtering |
+| `Utils/filters.py` | IPv4/IPv6, host, port, and protocol filter parsing and matching |
+| `Utils/analysis.py` | IPv4/IPv6/TCP/UDP/ICMP packet parsing, bounded payload extraction, suspicious service-port/payload signals, risk scoring, security summaries |
+| `Utils/detection_engine.py` | Time-window horizontal SYN scan, vertical SYN scan, periodic web beacon detection, evidence indexing, severity/confidence summaries |
+| `Utils/investigation.py` | IPv4/IPv6/port/domain/URL IOC extraction, DNS/HTTP-aware MITRE hypotheses, sessions, timeline, case summary |
+| `Utils/incident_report.py` | Case dataset creation, HTML/TXT/JSON reports, evidence SHA-256 hashing, custody metadata, optional reverse DNS |
+| `Utils/save.py` | PCAP export plus TXT/HTML packet and security reports |
+| `Utils/intel.py` | Offline STIX2 ingestion, IPv4/IPv6 indicator extraction, intel reporting, optional IP blocklist integration |
+| `Utils/blocklist.py` | IP validation/normalization, atomic persistence, add/remove/clear/query, audit events |
+| `Utils/block_engine.py` | Windows Firewall rule creation/removal/status, Administrator detection, dry-run, audited enforcement |
+| `Utils/security.py` | Salted scrypt hashing/verification, legacy SHA-256 migration, KDF validation, atomic credential storage |
+| `Utils/audit.py` | JSON-lines audit records, hash chaining, integrity verification, constant-time hash comparison |
+| `Utils/HostDetector.py` | ARP live-host discovery with IP/MAC/vendor enrichment |
+| `test_all.py` | Regression and security checks for CLI, analysis, detections, reports, authentication, hardening, alerts, intel and firewall dry-run |
+| `run.ps1` | PowerShell launcher forwarding arguments to `Main.py` |
+| `run.sh` | POSIX shell launcher forwarding arguments to `Main.py` |
+
+</div>
+
+### Current protocol coverage
+
+```text
+IPv4      → ✅
+IPv6      → ✅
+TCP       → ✅
+UDP       → ✅
+ICMP      → ✅
+DNS       → ✅ investigation/MITRE enrichment
+HTTP      → ✅ investigation/MITRE enrichment when Scapy HTTP layers are available
+TLS       → ⚠️ no dedicated parser yet
+```
+
+The analysis layer also provides protocol/port summaries and selected suspicious payload/service-port detection.
+
+---
+
 <h2 align="center">💻 INSTALLATION</h2>
 
 ### Windows
@@ -610,6 +653,8 @@ PYTHON 3.12 ─┘       │
 
 **Phase 3 secure-core verification:** 161 automated checks passed with 0 failures before merge.
 
+**Dependency stack:** Scapy, mac-vendor-lookup, and colorama. Runtime dependencies are installed from `SecureNet-Analyzer-main/requirements.txt`.
+
 </div>
 
 ---
@@ -624,7 +669,7 @@ PYTHON 3.12 ─┘       │
 | ✅ | Phase 2 | Offline PCAP Investigation |
 | ✅ | Phase 3 | Secure Core Hardening |
 | 🔜 | Phase 4 | Stateful Flow Engine |
-| 🔜 | Phase 5 | DNS / HTTP / TLS Intelligence |
+| 🔶 | Phase 5 | Deeper DNS / HTTP / TLS Intelligence |
 | 🔜 | Phase 6 | Advanced Detections + Correlation |
 | 🔜 | Phase 7 | Asset Inventory + Network Graph |
 | 🔜 | Phase 8 | Case Management |
@@ -633,7 +678,7 @@ PYTHON 3.12 ─┘       │
 
 </div>
 
-> **Important:** The current application is CLI-driven. A full graphical SOC dashboard is part of the planned evolution, not a claim about the current implementation.
+> **Current-state note:** DNS and HTTP-aware enrichment already exists in the investigation layer. The roadmap refers to deeper protocol metadata extraction and stronger TLS visibility.\n\n> **Important:** The current application is CLI-driven. A full graphical SOC dashboard is part of the planned evolution, not a claim about the current implementation.
 
 ---
 
