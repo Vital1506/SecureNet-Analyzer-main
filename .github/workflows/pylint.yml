@@ -1,5 +1,12 @@
 name: Pylint
 
+permissions:
+  contents: read
+
+concurrency:
+  group: securenet-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on: [push, pull_request]
 
 jobs:
@@ -12,9 +19,9 @@ jobs:
       run:
         working-directory: SecureNet-Analyzer-main
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
