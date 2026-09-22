@@ -11,7 +11,8 @@ import os
 import re
 import tempfile
 
-PASSWORD_FILE = "password_hash.txt"
+PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
+PASSWORD_FILE = os.path.join(PROJECT_ROOT, "password_hash.txt")
 SCRYPT_PREFIX = "scrypt"
 _SCRYPT_N = 2**14
 _SCRYPT_R = 8
