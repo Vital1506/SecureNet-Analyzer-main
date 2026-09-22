@@ -26,6 +26,7 @@ _MAX_SCRYPT_R = 32
 _MAX_SCRYPT_P = 8
 _MAX_SALT_BYTES = 64
 _MIN_DK_BYTES = 16
+_MAX_PASSWORD_RECORD_BYTES = 16 * 1024
 
 
 def _b64(data):
@@ -137,9 +138,11 @@ def save_password_record(record, path=PASSWORD_FILE):
 
 
 def load_password_record(path=PASSWORD_FILE):
-    """Load a password verifier, returning None when it does not exist."""
+    """Load a bounded password verifier, returning None when absent."""
     try:
+        if os.path.getsize(path) > _MAX_PASSWORD_RECORD_BYTES:
+            return None
         with open(path, "r", encoding="utf-8") as handle:
             return handle.read().strip()
-    except FileNotFoundError:
+    except (FileNotFoundError, OSError):
         return None
