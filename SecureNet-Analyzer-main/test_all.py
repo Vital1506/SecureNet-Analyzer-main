@@ -300,12 +300,35 @@ def check_incident_reporting():
         _record("incident report records observed IP", data["observed_ips"][0]["ip"] in {"10.0.0.5", "10.0.0.10"})
         _record("incident report records case id", data["metadata"]["case_id"] == "TEST-001")
         _record("incident report records evidence hash", len(data["evidence"][0]["sha256"]) == 64)
+        _record("incident report has timeline", "timeline" in data)
+        _record("incident report has sessions", "sessions" in data)
+        _record("incident report has MITRE enrichment", "case_summary" in data and "mitre_techniques" in data["case_summary"])
+        _record("incident report has IOC enrichment", "ioc_counts" in data["case_summary"])
+        _record("incident report has chain of custody", len(data["chain_of_custody"]) >= 1)
 
         txt = open(paths["txt"], encoding="utf-8").read()
         html_report = open(paths["html"], encoding="utf-8").read()
         _record("incident report txt contains IP activity", "OBSERVED IP ACTIVITY" in txt)
         _record("incident report html contains IP activity", "Observed IP Activity" in html_report)
         _record("incident report html contains findings", "cmd.exe" in html_report)
+
+
+def check_investigation_engine():
+    from Utils.investigation import extract_iocs, mitre_mappings, build_sessions, build_timeline
+    from scapy.all import Ether, IP, TCP, Raw
+
+    pkt = Ether()/IP(src="10.0.0.5", dst="10.0.0.10")/TCP(sport=5000, dport=22, flags="S")/Raw(load=b"powershell -enc AAAA https://evil.test/file")
+    pkt.time = 1763276400.0
+    iocs = extract_iocs(pkt, pkt[Raw].load.decode(errors="ignore"))
+    mappings = mitre_mappings(pkt, pkt[Raw].load.decode(errors="ignore"))
+    sessions = build_sessions([pkt])
+    timeline = build_timeline([pkt])
+    _record("investigation extracts IPv4 IOC", "10.0.0.5" in iocs["ipv4"])
+    _record("investigation extracts URL IOC", "https://evil.test/file" in iocs["urls"])
+    _record("investigation maps SSH", any(x["technique_id"] == "T1021.004" for x in mappings))
+    _record("investigation maps PowerShell", any(x["technique_id"] == "T1059.001" for x in mappings))
+    _record("investigation builds session", len(sessions) == 1 and sessions[0]["packets"] == 1)
+    _record("investigation builds timeline", len(timeline) >= 1)
 
 
 def check_analysis_reuse():
@@ -472,6 +495,7 @@ def main():
     check_cli_capture_arg_validation()
     check_analysis_reuse()
     check_incident_reporting()
+    check_investigation_engine()
     check_capture_module_smoke()
     check_host_detector_import()
     check_offline_flag_rejects_login_prompt()
