@@ -238,10 +238,13 @@ def start_application(args):
 
     # ---- Live host detection ----
     if args.option == "lh":
-        if args.ip:
-            detect_live_hosts(args.ip, timeout=args.timeout, max_hosts=args.max_hosts)
-        else:
+        if not args.ip:
             print("Provide IP using --ip")
+            sys.exit(1)
+        try:
+            detect_live_hosts(args.ip, timeout=args.timeout, max_hosts=args.max_hosts)
+        except (OSError, ValueError) as exc:
+            print(f"Live-host scan refused: {exc}")
             sys.exit(1)
 
     # ---- Offline PCAP investigation ----
@@ -318,7 +321,12 @@ def start_application(args):
                 print(f"Interface '{args.i}' not found. Available: {', '.join(list_interfaces())}")
                 sys.exit(1)
 
-        filter_criteria = parse_filter_string(args.f)
+        try:
+            filter_criteria = parse_filter_string(args.f)
+        except ValueError as exc:
+            print(f"Invalid filter: {exc}")
+            sys.exit(1)
+
         captured_packets = start_capture(args.pc, filter_criteria, args.i)
 
         if not captured_packets:
@@ -418,9 +426,6 @@ def main():
     parser.add_argument("--max-pcap-packets", type=int, default=MAX_PCAP_PACKETS_DEFAULT, help="Maximum offline PCAP packets to analyze")
 
     args = parser.parse_args()
-
-    if args.option == "c" and args.pc is None:
-        parser.error("c mode requires --pc <packet count>")
 
     if args.max_pcap_mb <= 0 or args.max_pcap_packets <= 0:
         parser.error("--max-pcap-mb and --max-pcap-packets must be positive")
