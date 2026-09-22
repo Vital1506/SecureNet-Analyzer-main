@@ -9,11 +9,17 @@ try:
 except ImportError:
     HTTPRequest = HTTPResponse = None
 
+from Utils.detection_engine import (
+    index_detections_by_packet,
+    run_detections,
+    summarize_detections,
+)
+
 MITRE_RULES = (
-    ("T1046", "Network Service Scanning", "TCP SYN traffic concentrated on sensitive/service ports"),
+    ("T1046", "Network Service Scanning", "Behavioral scanning pattern detected"),
     ("T1071.001", "Web Protocols", "HTTP request/response metadata observed"),
     ("T1071.004", "DNS", "DNS query/response activity observed"),
-    ("T1021.001", "Remote Services: SSH", "Traffic targeting TCP/22"),
+    ("T1021.001", "Remote Services: Remote Desktop Protocol", "Traffic targeting TCP/3389"),
     ("T1021.002", "Remote Services: SMB/Windows Admin Shares", "Traffic targeting TCP/445"),
     ("T1021.004", "Remote Services: SSH", "Traffic targeting TCP/22"),
     ("T1021.006", "Windows Remote Management", "Traffic targeting TCP/5985 or 5986"),
@@ -31,11 +37,13 @@ SUSPICIOUS_PATTERNS = {
     "T1190": re.compile(r"<script>|drop\s+table|select\s+.+\s+from|eval\(|system\(", re.I),
 }
 
+
 def utc_timestamp(packet):
     try:
         return datetime.fromtimestamp(float(packet.time), timezone.utc).isoformat()
     except (TypeError, ValueError, OSError):
         return "N/A"
+
 
 def extract_iocs(packet, payload=""):
     iocs = {"ipv4": [], "ipv6": [], "domains": [], "urls": [], "ports": []}
@@ -56,6 +64,7 @@ def extract_iocs(packet, payload=""):
             iocs["domains"].append(match)
     return {k: sorted(set(v)) for k, v in iocs.items()}
 
+
 def mitre_mappings(packet, payload=""):
     mappings = []
     dst_port = None
@@ -63,10 +72,10 @@ def mitre_mappings(packet, payload=""):
         dst_port = int(packet[TCP].dport)
     elif UDP in packet:
         dst_port = int(packet[UDP].dport)
-    if TCP in packet and int(packet[TCP].flags) & 0x02 and dst_port in {21,22,23,25,53,80,110,139,143,443,445,1433,3306,3389,5900,5985,5986,8080,8443}:
-        mappings.append({"technique_id": "T1046", "technique": "Network Service Scanning", "reason": "TCP SYN to a known service port"})
+
     port_map = {
         22: ("T1021.004", "Remote Services: SSH"),
+        3389: ("T1021.001", "Remote Services: Remote Desktop Protocol"),
         445: ("T1021.002", "Remote Services: SMB/Windows Admin Shares"),
         5985: ("T1021.006", "Windows Remote Management"),
         5986: ("T1021.006", "Windows Remote Management"),
@@ -74,21 +83,48 @@ def mitre_mappings(packet, payload=""):
     if dst_port in port_map:
         tid, name = port_map[dst_port]
         mappings.append({"technique_id": tid, "technique": name, "reason": f"Traffic targeted TCP/{dst_port}"})
+
     if packet.haslayer(DNS) or packet.haslayer(DNSQR):
-        mappings.append({"technique_id": "T1071.004", "technique": "Application Layer Protocol: DNS", "reason": "DNS activity observed"})
+        mappings.append({
+            "technique_id": "T1071.004",
+            "technique": "Application Layer Protocol: DNS",
+            "reason": "DNS activity observed",
+        })
+
     if (HTTPRequest and packet.haslayer(HTTPRequest)) or (HTTPResponse and packet.haslayer(HTTPResponse)):
-        mappings.append({"technique_id": "T1071.001", "technique": "Application Layer Protocol: Web Protocols", "reason": "HTTP metadata observed"})
+        mappings.append({
+            "technique_id": "T1071.001",
+            "technique": "Application Layer Protocol: Web Protocols",
+            "reason": "HTTP metadata observed",
+        })
+
     for tid, pattern in SUSPICIOUS_PATTERNS.items():
         if pattern.search(payload or ""):
             name = next((n for i, n, _ in MITRE_RULES if i == tid), "Command/Scripting or Transfer Activity")
-            mappings.append({"technique_id": tid, "technique": name, "reason": "Suspicious payload pattern matched"})
+            mappings.append({
+                "technique_id": tid,
+                "technique": name,
+                "reason": "Suspicious payload pattern matched",
+            })
+
     unique = {}
     for item in mappings:
         unique[(item["technique_id"], item["reason"])] = item
     return list(unique.values())
 
+
 def build_sessions(packets):
-    sessions = defaultdict(lambda: {"packets": 0, "bytes": 0, "first_seen": None, "last_seen": None, "protocol": "Unknown", "src": None, "dst": None, "src_port": None, "dst_port": None})
+    sessions = defaultdict(lambda: {
+        "packets": 0,
+        "bytes": 0,
+        "first_seen": None,
+        "last_seen": None,
+        "protocol": "Unknown",
+        "src": None,
+        "dst": None,
+        "src_port": None,
+        "dst_port": None,
+    })
     for packet in packets:
         if IP not in packet and packet.__class__.__name__ != "IP":
             continue
@@ -109,8 +145,12 @@ def build_sessions(packets):
         item["last_seen"] = ts if not item["last_seen"] else max(item["last_seen"], ts)
     return list(sessions.values())
 
-def build_timeline(packets):
+
+def build_timeline(packets, detections=None):
+    detections = run_detections(packets) if detections is None else detections
+    detection_index = index_detections_by_packet(detections)
     timeline = []
+
     for number, packet in enumerate(packets, 1):
         payload = ""
         try:
@@ -118,9 +158,12 @@ def build_timeline(packets):
                 payload = packet["Raw"].load.decode(errors="ignore")
         except Exception:
             pass
+
         mappings = mitre_mappings(packet, payload)
         iocs = extract_iocs(packet, payload)
-        if mappings or any(iocs.values()):
+        detection_ids = detection_index.get(number, [])
+
+        if mappings or any(iocs.values()) or detection_ids:
             src = packet[IP].src if IP in packet else "N/A"
             dst = packet[IP].dst if IP in packet else "N/A"
             timeline.append({
@@ -130,22 +173,33 @@ def build_timeline(packets):
                 "destination_ip": dst,
                 "protocol": "TCP" if TCP in packet else "UDP" if UDP in packet else "Other",
                 "mitre": mappings,
+                "detections": detection_ids,
                 "iocs": iocs,
             })
+
     return sorted(timeline, key=lambda x: x["timestamp"])
 
-def build_case_summary(packets):
-    timeline = build_timeline(packets)
+
+def build_case_summary(packets, detections=None):
+    detections = run_detections(packets) if detections is None else detections
+    timeline = build_timeline(packets, detections)
     techniques = Counter()
     ioc_counts = Counter()
+
     for event in timeline:
         for item in event["mitre"]:
             techniques[item["technique_id"]] += 1
         for kind, values in event["iocs"].items():
             if values:
                 ioc_counts[kind] += len(values)
+
+    detection_summary = summarize_detections(detections)
     return {
         "timeline_events": len(timeline),
         "mitre_techniques": dict(techniques.most_common()),
         "ioc_counts": dict(ioc_counts),
+        "detections": detection_summary["total"],
+        "detection_severity": detection_summary["severity"],
+        "detection_rules": detection_summary["rules"],
+        "rule_pack_version": detection_summary["rule_pack_version"],
     }

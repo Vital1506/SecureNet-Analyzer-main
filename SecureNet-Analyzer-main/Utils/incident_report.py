@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 from Utils.analysis import build_packet_analysis, get_security_summary
 from Utils.investigation import build_sessions, build_timeline, build_case_summary
+from Utils.detection_engine import run_detections
 
 
 def _timestamp(packet):
@@ -101,13 +102,15 @@ def build_incident_dataset(packets):
         })
 
     records.sort(key=lambda x: (x["blocklist_hits"], x["packets"]), reverse=True)
+    detections = run_detections(packets)
     return {
         "summary": get_security_summary(packets),
         "hosts": records,
         "events": events,
         "sessions": build_sessions(packets),
         "timeline": build_timeline(packets),
-        "case_summary": build_case_summary(packets),
+        "case_summary": build_case_summary(packets, detections),
+        "detections": detections,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "attribution_warning": "This report describes observed network activity. An IP address alone does not establish ownership or attacker attribution."
     }
@@ -165,6 +168,7 @@ def generate_incident_report(packets, prefix, case_id="UNASSIGNED",
         "sessions": dataset["sessions"],
         "timeline": dataset["timeline"],
         "case_summary": dataset["case_summary"],
+        "detections": dataset["detections"],
         "evidence": evidence,
         "chain_of_custody": chain_of_custody
     }
@@ -216,6 +220,18 @@ def generate_incident_report(packets, prefix, case_id="UNASSIGNED",
         else:
             handle.write("No configured security detections were triggered.\n")
 
+        handle.write("\nBEHAVIORAL DETECTIONS\n" + "-" * 78 + "\n")
+        if dataset["detections"]:
+            for finding in dataset["detections"]:
+                handle.write(
+                    f"{finding['finding_id']} | {finding['severity']} | confidence={finding['confidence']} | "
+                    f"{finding['name']} | {finding['source_ip']} | evidence packets={finding['evidence_packets']}\n"
+                )
+                for observation in finding["observations"]:
+                    handle.write(f"  - {observation}\n")
+        else:
+            handle.write("No behavioral detections were triggered.\n")
+
         handle.write("\nINVESTIGATION ENRICHMENT\n" + "-" * 78 + "\n")
         handle.write(f"Timeline events: {dataset['case_summary']['timeline_events']}\n")
         handle.write(f"MITRE ATT&CK techniques: {dataset['case_summary']['mitre_techniques']}\n")
@@ -265,6 +281,16 @@ def generate_incident_report(packets, prefix, case_id="UNASSIGNED",
             f"<td>{html.escape(event['source_ip'])}</td><td>{html.escape(event['destination_ip'])}</td><td>{techniques}</td></tr>"
         )
 
+    detection_rows = []
+    for finding in dataset["detections"]:
+        observations = "<br>".join(html.escape(x) for x in finding["observations"]) or "None"
+        detection_rows.append(
+            f"<tr><td>{html.escape(finding['finding_id'])}</td><td>{html.escape(finding['rule_id'])}</td>"
+            f"<td>{html.escape(finding['severity'])}</td><td>{finding['confidence']}</td>"
+            f"<td>{html.escape(finding['name'])}</td><td>{html.escape(str(finding['source_ip']))}</td>"
+            f"<td>{html.escape(str(finding['evidence_packets']))}</td><td>{observations}</td></tr>"
+        )
+
     evidence_rows = [
         f"<tr><td>{html.escape(x['path'])}</td><td>{x['size_bytes']}</td><td><code>{x['sha256']}</code></td></tr>"
         for x in evidence
@@ -306,6 +332,10 @@ code{{word-break:break-all}}
 <div class="card"><h2>Security Events</h2>
 <table><thead><tr><th>Packet</th><th>Timestamp</th><th>Source</th><th>Destination</th><th>Protocol</th><th>Src Port</th><th>Dst Port</th><th>Bytes</th><th>Findings</th><th>Blocklist</th></tr></thead>
 <tbody>{''.join(event_rows) or '<tr><td colspan="10">No security events generated.</td></tr>'}</tbody></table></div>
+
+<div class="card"><h2>Behavioral Detections</h2>
+<table><thead><tr><th>Finding</th><th>Rule</th><th>Severity</th><th>Confidence</th><th>Detection</th><th>Source</th><th>Evidence Packets</th><th>Observations</th></tr></thead>
+<tbody>{''.join(detection_rows) or '<tr><td colspan="8">No behavioral detections triggered.</td></tr>'}</tbody></table></div>
 
 <div class="card"><h2>Investigation Enrichment</h2>
 <div class="grid"><div class="metric"><b>Timeline events</b>{dataset["case_summary"]["timeline_events"]}</div>

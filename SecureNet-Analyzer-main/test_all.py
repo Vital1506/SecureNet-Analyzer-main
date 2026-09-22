@@ -299,6 +299,7 @@ def check_incident_reporting():
         _record("incident report has sessions", "sessions" in data)
         _record("incident report has MITRE enrichment", "case_summary" in data and "mitre_techniques" in data["case_summary"])
         _record("incident report has IOC enrichment", "ioc_counts" in data["case_summary"])
+        _record("incident report has behavioral detections", "detections" in data and "detections" in data["case_summary"])
         _record("incident report has chain of custody", len(data["chain_of_custody"]) >= 1)
 
         txt = open(paths["txt"], encoding="utf-8").read()
@@ -318,12 +319,52 @@ def check_investigation_engine():
     mappings = mitre_mappings(pkt, pkt[Raw].load.decode(errors="ignore"))
     sessions = build_sessions([pkt])
     timeline = build_timeline([pkt])
+    rdp_pkt = Ether()/IP(src="10.0.0.5", dst="10.0.0.10")/TCP(sport=5001, dport=3389, flags="S")
+    rdp_mappings = mitre_mappings(rdp_pkt, "")
+    _record("investigation maps RDP correctly", any(x["technique_id"] == "T1021.001" for x in rdp_mappings))
     _record("investigation extracts IPv4 IOC", "10.0.0.5" in iocs["ipv4"])
     _record("investigation extracts URL IOC", "https://evil.test/file" in iocs["urls"])
     _record("investigation maps SSH", any(x["technique_id"] == "T1021.004" for x in mappings))
     _record("investigation maps PowerShell", any(x["technique_id"] == "T1059.001" for x in mappings))
     _record("investigation builds session", len(sessions) == 1 and sessions[0]["packets"] == 1)
     _record("investigation builds timeline", len(timeline) >= 1)
+
+
+def check_behavioral_detection_engine():
+    from Utils.detection_engine import run_detections, summarize_detections
+    from scapy.all import Ether, IP, TCP
+
+    packets = []
+
+    for index in range(15):
+        pkt = Ether()/IP(src="10.0.0.5", dst=f"10.0.0.{100 + index}")/TCP(sport=4000 + index, dport=80, flags="S")
+        pkt.time = 1763276400.0 + index
+        packets.append(pkt)
+
+    for index in range(10):
+        pkt = Ether()/IP(src="10.0.0.6", dst="10.0.0.20")/TCP(sport=5000 + index, dport=1000 + index, flags="S")
+        pkt.time = 1763276500.0 + index
+        packets.append(pkt)
+
+    for index in range(6):
+        pkt = Ether()/IP(src="10.0.0.7", dst="198.51.100.40")/TCP(sport=6000 + index, dport=443, flags="A")
+        pkt.time = 1763276600.0 + (index * 10)
+        packets.append(pkt)
+
+    findings = run_detections(packets)
+    summary = summarize_detections(findings)
+    rules = {finding["rule_id"] for finding in findings}
+
+    _record("detection engine finds horizontal scan", "NET-SCAN-001" in rules)
+    _record("detection engine finds vertical scan", "NET-SCAN-002" in rules)
+    _record("detection engine finds periodic beacon", "NET-BEACON-001" in rules)
+    _record("detection findings have evidence", all(finding["evidence_packets"] for finding in findings))
+    _record("detection confidence bounded", all(0.0 <= finding["confidence"] <= 1.0 for finding in findings))
+    _record(
+        "detection summary has rule counts",
+        summary["rules"].get("NET-SCAN-001") == 1 and summary["rules"].get("NET-SCAN-002") == 1,
+    )
+    _record("detection summary has rule pack version", summary["rule_pack_version"] == "1.0.0")
 
 
 def check_analysis_reuse():
@@ -491,6 +532,7 @@ def main():
     check_analysis_reuse()
     check_incident_reporting()
     check_investigation_engine()
+    check_behavioral_detection_engine()
     check_capture_module_smoke()
     check_host_detector_import()
     check_offline_flag_rejects_login_prompt()
