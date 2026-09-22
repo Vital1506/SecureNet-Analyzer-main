@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛡️ SecureNet Analyzer
+# 🛰️SecureNet Analyzer
 
 ### **Defensive Network Detection • Investigation • Response**
 
