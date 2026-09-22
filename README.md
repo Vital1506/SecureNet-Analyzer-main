@@ -502,6 +502,17 @@ python Main.py --help
 
 Use an elevated PowerShell / VS Code session when the requested operation requires Administrator privileges.
 
+### Package build
+
+The repository includes `pyproject.toml` for reproducible package builds and a `securenet-analyzer` console entry point.
+
+```bash
+python -m pip install build
+python -m build
+```
+
+This creates source and wheel distributions under `dist/`.
+
 ### Linux / macOS
 
 ```bash

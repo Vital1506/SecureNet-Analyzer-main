@@ -1,161 +1,250 @@
-# SecureNet Analyzer — Master Prompt
+# SecureNet Analyzer — Current Engineering Specification
 
 ## Project identity
+
 - **Name:** SecureNet Analyzer
-- **Repository:** `project-execution-guide/SecureNet-Analyzer-main/`
-- **Entry point:** `Main.py` (CLI, Python 3)
-- **Core libs:** `scapy`, `mac-vendor-lookup`
-- **Purpose (one line):** Authorized network traffic capture, live-host enumeration, packet analysis, and security reporting toolkit for defenders and pentesters.
+- **Repository:** `Vital1506/SecureNet-Analyzer-main`
+- **Source root:** `SecureNet-Analyzer-main/`
+- **Entry point:** `SecureNet-Analyzer-main/Main.py`
+- **Core libraries:** Scapy, mac-vendor-lookup, colorama
+- **Purpose:** Authorized defensive network capture, offline PCAP investigation, behavioral detection, threat-intelligence ingestion, IOC extraction, incident reporting, and controlled local response.
 
-## Operational intent and constraints
-- This tool is for **educational environments and authorized penetration testing only**.
-- It must **never** be used on networks without explicit written authorization.
-- Raw packet capture requires **Administrator / root privileges**.
-- Passwords are stored only as **SHA-256 hashes** in `password_hash.txt`.
-- Blocked IPs are stored in `blocked_ips.txt`.
+## Operational constraints
 
-## Command surface (authoritative)
-```
+- Use only on systems and networks that you own or are explicitly authorized to assess.
+- Live packet capture and ARP discovery may require Administrator/root privileges.
+- Firewall enforcement is Windows-only and requires authentication, Administrator privileges, and explicit confirmation for real changes.
+- `--offline` is an authentication bypass only for read-only/offline-safe operations; it never bypasses authentication for state-changing or privileged operations.
+- Threat-intelligence bundles are treated as untrusted input.
+
+## Command surface
+
+```text
 python Main.py <option> [flags]
 
-option:
-  c                 Capture and analyze packets
-  lh                Live host detection via ARP
-  block             Local IP blocklist management
-  block-activate    Enforce blocked IPs via firewall (Windows)
-  block-deactivate  Remove firewall block rules
-  block-status      Show firewall block state
-  intel             Load/fetch threat intel, extract IOCs, optionally add to blocklist
-
-Common flags:
-  --i <iface>          Interface to capture from
-  --pc <n>            Packet count (capture mode)
-  --a                  Real-time per-packet analysis
-  --s                  Save captured packets
-  --p <file>          Save as PCAP
-  --t <file>          Save as TXT report
-  --html <file>       Save as HTML executive report
-  --summary           Print security summary after capture
-  --f <expr>          Filter expression
-  --ip <addr>         Target IP for live host detection
-  --block <ip>        Add IP to blocklist
-  --unblock <ip>      Remove IP from blocklist
-  --list-blocks       Show blocklist
-  --clear-blocks      Clear blocklist
-  --offline           Skip login prompt (automation)
-  --dry-run           Simulate firewall blocking without creating real rules
-  --timeout <s>       ARP scan timeout (live-host mode)
-  --max-hosts <n>     Maximum hosts to report (live-host mode)
-  --intel-source <p>  STIX2 JSON bundle path, or 'sample' for bundled sample
-  --intel-auto-block  Add discovered IP IOCs to the local blocklist
-  --alert-on <n>      Trigger alert action when risk score >= threshold
-  --alert-file <f>    Append threshold alerts to this file
-  --alert-exit        Exit with code 2 when threshold is crossed
+c                 Live packet capture and analysis
+pcap              Offline PCAP investigation
+lh                Live host discovery through ARP
+block             Local IP blocklist management
+block-activate    Enforce blocklist through Windows Firewall
+block-deactivate  Remove SecureNet Windows Firewall rules
+block-status      Inspect SecureNet firewall block state
+audit-verify      Verify the local hash-chained audit log
+intel             Load offline STIX2 threat intelligence
 ```
 
-Filter expression grammar (case-insensitive, `and`-joined):
+### Common options
+
+| Option | Purpose |
+|---|---|
+| `--i <iface>` | Capture interface |
+| `--pc <n>` | Positive live-capture packet count |
+| `--a` | Per-packet analysis |
+| `--s` | Enable saving when an output target is supplied |
+| `--p <file>` | PCAP output |
+| `--t <file>` | TXT output |
+| `--html <file>` | HTML output |
+| `--summary` | Security summary |
+| `--f <expr>` | Explicit traffic filter |
+| `--ip <addr>` | IPv4 target for ARP host discovery |
+| `--block <ip>` | Add blocklist entry |
+| `--unblock <ip>` | Remove blocklist entry |
+| `--list-blocks` | List blocklist |
+| `--clear-blocks` | Clear blocklist |
+| `--offline` | Skip authentication only for offline/read-only-safe workflows |
+| `--confirm-firewall` | Confirm a real Windows Firewall change |
+| `--dry-run` | Preview firewall response without executing firewall commands |
+| `--timeout <s>` | Positive ARP timeout |
+| `--max-hosts <n>` | 1–254 ARP host results |
+| `--intel-source <p>` | STIX2 JSON path or `sample` |
+| `--intel-auto-block` | Add valid IP IOCs to blocklist |
+| `--alert-on <n>` | Alert when risk score reaches 0–100 threshold |
+| `--alert-file <f>` | Append threshold alerts to a file |
+| `--alert-exit` | Exit code 2 when a threshold is crossed |
+| `--report-prefix <p>` | Generate HTML/TXT/JSON incident reports |
+| `--case-id <id>` | Investigation case identifier |
+| `--analyst <name>` | Analyst metadata |
+| `--organization <name>` | Organization metadata |
+| `--resolve-hostnames` | Opt into reverse-DNS report enrichment |
+| `--max-pcap-mb <n>` | Positive offline PCAP size limit |
+| `--max-pcap-packets <n>` | Positive offline PCAP packet limit |
+
+## Filter grammar
+
+The filter language is intentionally smaller than Wireshark's full display-filter grammar:
+
+```text
+src host <IPv4/IPv6>
+dst host <IPv4/IPv6>
+src port <1-65535>
+dst port <1-65535>
+tcp
+udp
+icmp
+icmp6
+ip
+ipv6
 ```
-src host <ip> | dst host <ip>
-src port <n> | dst port <n>
-tcp | udp | icmp | icmp6 | ip | ipv6
+
+Clauses are joined with case-insensitive `and`.
+
+Unsupported or malformed filter conditions are rejected instead of silently ignored.
+
+## Authentication and secure state
+
+- Passwords use salted `scrypt` verifiers.
+- Legacy direct SHA-256 records are supported only for migration and are upgraded after successful authentication.
+- Password input must be at least 12 characters during setup.
+- Login is limited to 5 attempts with progressive delay.
+- Password records are bounded and written atomically.
+- Blocklist state is validated, normalized, and written atomically.
+- Security-sensitive changes append to a local hash-chained audit log.
+
+## PCAP / evidence safety
+
+- Offline PCAP size is bounded by `--max-pcap-mb`.
+- Offline PCAP packet count is bounded by `--max-pcap-packets`.
+- Packet payload analysis is capped at 64 KiB.
+- Investigation payload decoding uses the same bounded approach.
+- Reverse DNS is disabled unless `--resolve-hostnames` is supplied.
+- Evidence files can be SHA-256 hashed into incident reports.
+- Incident case IDs are sanitized before being incorporated into output filenames.
+
+## Analysis and investigation
+
+### Packet analysis
+
+Supports:
+- IPv4
+- IPv6
+- TCP
+- UDP
+- ICMP
+- ICMPv6
+- source/destination ports
+- blocklist hits
+- suspicious service-port targeting
+- selected suspicious payload patterns
+
+### Behavioral detection
+
+Current rule pack:
+
+| Rule | Purpose |
+|---|---|
+| `NET-SCAN-001` | Horizontal TCP SYN scan |
+| `NET-SCAN-002` | Vertical TCP SYN scan |
+| `NET-BEACON-001` | Periodic web beaconing |
+
+Findings include severity, confidence, timestamps, observations, MITRE references, and packet evidence.
+
+### Investigation enrichment
+
+Current enrichment includes:
+- IPv4/IPv6 IOCs
+- domains
+- URLs
+- ports
+- DNS-aware mapping
+- HTTP-aware mapping when Scapy HTTP layers are available
+- MITRE ATT&CK hypotheses
+- IPv4/IPv6 sessions
+- enriched timeline
+- case summaries
+
+TLS does not yet have a dedicated parser.
+
+## Threat intelligence
+
+STIX2 ingestion is offline-first.
+
+The loader:
+- accepts a JSON object containing an `objects` array or a JSON object list
+- bounds the input file to 32 MiB
+- bounds objects to 100,000
+- validates object structure
+- extracts valid IPv4/IPv6 indicators
+- counts non-IP indicators
+- optionally adds valid IP indicators to the local blocklist
+
+## Firewall safety
+
+Real enforcement is fail-closed unless the process is running with confirmed Windows Administrator privileges.
+
+Dry-run mode:
+- does not execute firewall subprocesses
+- reports what would be changed
+- can be used safely from CI/Linux for behavior tests
+
+PowerShell runs without execution-policy bypass.
+
+SecureNet firewall rules use predictable names:
+
+```text
+SecureNet_Block_In_<ip>
+SecureNet_Block_Out_<ip>
 ```
-Examples:
-- `src host 10.0.0.1 and dst port 80`
-- `tcp and dst host 192.168.1.10`
 
-## Functional requirements
-1. **Authentication**
-   - First run with no `password_hash.txt` → set password flow.
-   - Every run → login before any network operation.
-   - SHA-256 only; no plaintext.
+Firewall deactivation discovers SecureNet-owned rules directly rather than depending on the current local blocklist.
 
-2. **Capture mode (`c`)**
-   - Sniff `n` packets on `--i` if provided, otherwise default interface.
-   - Apply `--f` filter; `all` means no filter.
-   - `--a` prints per-packet analysis.
-   - `--summary` prints risk summary.
-   - `--s` with `--p`, `--t`, or `--html` saves output.
-   - If `--s` is set but none of `--p/--t/--html` is given, print a helpful message.
+## Reporting
 
-3. **Live host mode (`lh`)**
-   - ARP-broadcast to `/24` of `--ip`.
-   - Print IP, MAC, vendor for each reply.
-   - Require `--ip`.
+Incident reporting can generate:
+- HTML
+- TXT
+- JSON
 
-4. **Blocklist mode (`block`)**
-   - `--block`, `--unblock`, `--list-blocks`, `--clear-blocks`.
-   - Blocked IPs persist in `blocked_ips.txt`.
-   - Blocked IPs influence risk scoring during analysis.
+Packages can include:
+- case metadata
+- observed IP activity
+- security events
+- detections
+- sessions
+- timeline
+- IOCs
+- MITRE mappings
+- evidence hashes
+- custody metadata
+- risk summary
 
-5. **Firewall block enforcement (`block-activate` / `block-deactivate` / `block-status`)**
-   - `block-activate` creates Windows Firewall rules (one per IP, inbound + outbound, action=block, profile=any) for every IP in the local blocklist.
-   - `block-deactivate` removes those rules.
-   - `block-status` reports active SecureNet block rules and cross-checks against the local blocklist.
-   - Requires Administrator privileges.
-   - `--dry-run` simulates without creating real rules.
-   - Rule naming: `SecureNet_Block_In_<ip>` and `SecureNet_Block_Out_<ip>`.
-   - Invalid IPs in the blocklist are skipped during enforcement.
+## Verification
 
-6. **Threat intel (`intel`)**
-   - Loads a STIX2 JSON bundle (or the bundled sample via `--intel-source sample`).
-   - Extracts IPv4 and IPv6 indicators from `ipv4-addr:value` / `ipv6-addr:value` patterns.
-   - Prints a terminal summary: bundle objects, indicator count, IPv4/IPv6 IOC counts, other indicator count.
-   - `--intel-auto-block` adds valid IP IOCs to the local blocklist (invalid IPs are rejected).
-   - Non-IP indicators (file hashes, URLs, etc.) are counted but not added to the blocklist.
-   - Offline-first: no network fetch; supply your own bundle path via `--intel-source`.
+Run:
 
-7. **Analysis**
+```bash
+python test_all.py
+python -m compileall -q Main.py Utils
+```
 
-   Per packet, detect:
-   - TCP SYN to sensitive ports (22, 23, 3389, 445, 5900, 8080) → service probing.
-   - Payload keywords: `cmd.exe`, `powershell`, `wget`, `curl`, `bash -i`, `nc`, `rm -rf`, `passwd`, `select`, `drop table`, `<script>`, `base64`, `eval(`, `system(`.
-   - Any traffic to sensitive ports → admin-port traffic note.
-   - Source or destination IP in blocklist → blocked-hit note.
+CI additionally runs:
+- Python 3.10 / 3.11 / 3.12
+- Bandit
+- pip-audit
+- Pylint
 
-   Risk scoring:
-   - +20 per suspicious finding.
-   - +35 per blocked IP involved (src or dst).
-   - Capped at 100.
-   - Levels: LOW <25, MEDIUM 25-49, HIGH 50-79, CRITICAL 80+.
+## Engineering roadmap
 
-6. **Export**
-   - PCAP: raw Scapy `wrpcap`.
-   - TXT: human-readable report with summary, protocol counts, alerts, per-packet details.
-   - HTML: styled executive report, escaped payloads, full packet table.
+Implemented:
+1. Behavioral detection foundation
+2. Offline PCAP investigation
+3. Secure core hardening
 
-7. **Risk-threshold alerting (capture mode)**
-   - `--alert-on <n>` triggers an action when `risk_score >= n`.
-   - Without `--alert-file`, prints an `ALERT:` line to stdout.
-   - With `--alert-file`, appends a structured line to that file.
-   - `--alert-exit` causes exit code 2 when the threshold is crossed.
-   - If no threshold is crossed, the CLI exits normally (0).
+Next:
+4. Stateful flow engine
+5. Deeper protocol metadata, especially TLS
+6. More behavioral detections and attack-chain correlation
+7. Asset inventory and network graph
+8. Case-management workflow
+9. SOC web dashboard
+10. Evidence-grounded AI investigation
 
-## Non-functional requirements
-- No duplicate scans: each packet's analysis is computed once and reused for `--a`, `--summary`, TXT, and HTML.
-- Interface names must be validated against Scapy's interface list before capture.
-- All output paths must create missing parent directories safely.
-- Graceful handling of permission errors and empty captures.
-- Importable modules; no side effects on import.
+## Non-goals
 
-## Acceptance criteria
-- `python -c "import Main"` loads without error (modulo runtime auth).
-- `python Main.py --help` prints the full option table including new modes and flags.
-- All seven modes have working `--help`: `c`, `lh`, `block`, `block-activate`, `block-deactivate`, `block-status`, `intel`.
-- `python Main.py block --list-blocks` works without capture privileges.
-- Filter parser handles `src host`, `dst host`, `src port`, `dst port`, and protocol names.
-- HTML export is invokable via `--html` and produces a valid `.html` file.
-- Analysis is computed once per packet across all output paths.
-- `block-activate --dry-run` reports what it would do without creating real rules.
-- `intel --intel-source sample` extracts IOCs from the bundled sample and reports them.
-- `intel --intel-auto-block` adds only valid IP IOCs; invalid IPs are rejected.
-- Firewall block status reports active rules and cross-checks the local blocklist.
-- Capture mode accepts `--alert-on`, `--alert-file`, and `--alert-exit` without error.
+- Full Wireshark filter compatibility
+- IPv6 ARP-style live discovery
+- Linux/macOS firewall enforcement in the current release
+- Claiming that detections prove compromise or attribution
 
-## Out of scope for now
-- Full Wireshark-filter syntax parity.
-- IPv6 live-host scanning beyond what ARP supports.
-- Persistent configuration files beyond password and blocklist.
-- Linux/macOS firewall enforcement (block engine is Windows-first via netsh/PowerShell).
+## Legal
 
-## Legal reminder
-See `README.md` Legal Disclaimer and `LICENSE`. This project is MIT-licensed but intended for authorized use only.
+Use only for authorized defensive security work. See `README.md`, `SECURITY.md`, and `LICENSE`.

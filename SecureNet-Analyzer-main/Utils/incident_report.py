@@ -2,11 +2,13 @@ import hashlib
 import html
 import json
 import os
+import re
 import socket
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
 from Utils.analysis import build_packet_analysis, get_security_summary
+from Utils.blocklist import load_blocklist
 from Utils.investigation import build_sessions, build_timeline, build_case_summary
 from Utils.detection_engine import run_detections
 
@@ -26,6 +28,15 @@ def _sha256(path):
     return digest.hexdigest()
 
 
+def _safe_case_id(case_id):
+    """Convert a case ID into a bounded filename-safe component."""
+    value = re.sub(r"[^A-Za-z0-9._-]+", "_", str(case_id))
+    while ".." in value:
+        value = value.replace("..", "_")
+    value = value.strip("._-")
+    return (value or "UNASSIGNED")[:80]
+
+
 def _hostname(ip):
     try:
         return socket.gethostbyaddr(ip)[0]
@@ -40,9 +51,10 @@ def build_incident_dataset(packets, resolve_hostnames=False):
         "findings": Counter(), "blocklist_hits": 0
     })
     events = []
+    blocked_ips = load_blocklist()
 
     for number, packet in enumerate(packets, 1):
-        result = build_packet_analysis(packet)
+        result = build_packet_analysis(packet, blocked_ips=blocked_ips)
         info = result["packet_info"]
         src = info.get("src_ip")
         dst = info.get("dst_ip")
@@ -104,11 +116,11 @@ def build_incident_dataset(packets, resolve_hostnames=False):
     records.sort(key=lambda x: (x["blocklist_hits"], x["packets"]), reverse=True)
     detections = run_detections(packets)
     return {
-        "summary": get_security_summary(packets),
+        "summary": get_security_summary(packets, detections=detections),
         "hosts": records,
         "events": events,
         "sessions": build_sessions(packets),
-        "timeline": build_timeline(packets),
+        "timeline": build_timeline(packets, detections=detections),
         "case_summary": build_case_summary(packets, detections),
         "detections": detections,
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -128,7 +140,8 @@ def generate_incident_report(packets, prefix, case_id="UNASSIGNED",
     prefix = os.path.abspath(prefix)
     os.makedirs(os.path.dirname(prefix) or ".", exist_ok=True)
 
-    base = f"{prefix}_{case_id.replace(' ', '_')}"
+    safe_case_id = _safe_case_id(case_id)
+    base = f"{prefix}_{safe_case_id}"
     paths = {
         "json": base + ".json",
         "txt": base + ".txt",

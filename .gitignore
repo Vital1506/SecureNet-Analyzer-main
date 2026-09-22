@@ -4,3 +4,12 @@ __pycache__/
 *.db
 .env
 models/model.pkl
+
+# SecureNet runtime data
+blocked_ips.txt
+password_hash.txt
+audit.log
+*.pcap
+*.pcapng
+*.log
+reports/

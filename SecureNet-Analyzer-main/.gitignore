@@ -18,3 +18,7 @@ __pycache__/
 *.pyo
 
 audit.log
+
+*.log
+*.pcapng
+reports/

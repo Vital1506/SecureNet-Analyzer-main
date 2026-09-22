@@ -83,7 +83,7 @@ def check_imports():
 
 def check_filters():
     from Utils.filters import parse_filter_string, packet_filter
-    from scapy.all import IP, TCP, Ether
+    from scapy.all import IP, TCP, Ether, Raw
 
     cases = [
         ("all", None),
@@ -100,6 +100,26 @@ def check_filters():
         ok = got == expected
         _record(f"filter parse: {expr!r}", ok, detail=f"got={got} expected={expected}")
 
+    invalid_filters = [
+        "src host not-an-ip",
+        "dst port 0",
+        "dst port 65536",
+        "unknown condition",
+    ]
+    for expression in invalid_filters:
+        try:
+            parse_filter_string(expression)
+        except ValueError:
+            _record(f"filter rejects invalid: {expression!r}", True)
+        else:
+            _record(f"filter rejects invalid: {expression!r}", False)
+
+    from scapy.layers.inet6 import IPv6
+    ipv6_icmp = Ether()/IPv6(src="2001:db8::1", dst="2001:db8::2", nh=58)/Raw(load=b"icmpv6")
+    _record("filter matches protocol icmp6", packet_filter(ipv6_icmp, {"protocol": "icmp6"}))
+    _record("filter rejects protocol tcp for icmp6", not packet_filter(ipv6_icmp, {"protocol": "tcp"}))
+    _record("filter matches IPv6 layer", packet_filter(ipv6_icmp, {"protocol": "ipv6"}))
+
     # Build a synthetic TCP packet and confirm filtering logic.
     pkt = Ether()/IP(src="10.0.0.1", dst="192.168.1.10")/TCP(sport=12345, dport=80)
     _record("filter matches src_ip", packet_filter(pkt, {"src_ip": "10.0.0.1"}))
@@ -107,6 +127,8 @@ def check_filters():
     _record("filter matches dst_port", packet_filter(pkt, {"dst_port": 80}))
     _record("filter rejects wrong dst_port", not packet_filter(pkt, {"dst_port": 443}))
     _record("filter matches protocol tcp", packet_filter(pkt, {"protocol": "tcp"}))
+    _record("filter matches IPv4 layer", packet_filter(pkt, {"protocol": "ip"}))
+    _record("filter rejects IPv6 layer for IPv4 packet", not packet_filter(pkt, {"protocol": "ipv6"}))
     _record("filter rejects protocol udp", not packet_filter(pkt, {"protocol": "udp"}))
     _record("filter None accepts all", packet_filter(pkt, None))
     _record("filter empty dict accepts all", packet_filter(pkt, {}))
@@ -259,8 +281,11 @@ def check_cli_capture_arg_validation():
     # Capture mode without --pc should exit with a message (and non-zero).
     r = _run_cli(["c", "--offline"], timeout=15)
     _record("cli c without --pc exits non-zero", r.returncode != 0)
-    _record("cli c without --pc prints message",
-            "Provide --pc" in (r.stdout + r.stderr))
+    output = r.stdout + r.stderr
+    _record(
+        "cli c without --pc prints message",
+        "--pc" in output and ("positive integer" in output or "requires --pc" in output),
+    )
 
 
 def check_incident_reporting():
@@ -432,6 +457,15 @@ def check_host_detector_import():
     _record("HostDetector.detect_live_hosts callable", callable(detect_live_hosts))
     _record("HostDetector.get_mac_vendor callable", callable(get_mac_vendor))
     _record("HostDetector.get_mac_vendor unknown", get_mac_vendor("00:00:00:00:00:00") in {"Unknown", ""} or True)
+
+
+    from Utils.HostDetector import detect_live_hosts
+    try:
+        detect_live_hosts("not-an-ip")
+    except ValueError:
+        _record("HostDetector rejects invalid IPv4", True)
+    else:
+        _record("HostDetector rejects invalid IPv4", False)
 
 
 def check_security_core():
@@ -619,6 +653,124 @@ def check_lh_timeout_flag_accepted():
     _record("cli lh accepts --timeout/--max-hosts", ok, detail=output[:200])
 
 
+def check_code_hardening_regressions():
+    from unittest.mock import patch
+
+    from Utils import block_engine
+    from Utils.incident_report import _safe_case_id, generate_incident_report
+    from Utils.investigation import build_sessions, build_timeline
+    from scapy.all import Ether, IPv6, TCP, Raw
+
+    from Utils import blocklist
+
+    with tempfile.TemporaryDirectory() as td:
+        original_blocklist_path = blocklist.BLOCKLIST_FILE
+        blocklist.BLOCKLIST_FILE = os.path.join(td, "blocked_ips.txt")
+        try:
+            blocklist.save_blocklist(["10.0.0.1"])
+            with patch("Utils.blocklist.append_audit", side_effect=OSError("audit unavailable")):
+                try:
+                    blocklist.add_ip_to_blocklist("10.0.0.2")
+                except OSError:
+                    pass
+            _record(
+                "blocklist rolls back on audit failure",
+                blocklist.load_blocklist() == ["10.0.0.1"],
+            )
+        finally:
+            blocklist.BLOCKLIST_FILE = original_blocklist_path
+
+    with patch.object(block_engine, "_elevated", return_value=False):
+        result = block_engine.block_activate(["10.0.0.8"], dry_run=False)
+        _record(
+            "firewall real action fails closed without admin",
+            "Administrator privileges" in result,
+        )
+
+    with patch.object(block_engine.subprocess, "run", side_effect=AssertionError("subprocess used")):
+        result = block_engine.block_activate(["10.0.0.8"], dry_run=True)
+        _record("firewall activate dry-run performs no subprocess", "dry-run" in result.lower())
+        result = block_engine.block_deactivate(dry_run=True)
+        _record("firewall deactivate dry-run performs no subprocess", "dry-run" in result.lower())
+
+    ipv6_pkt = Ether()/IPv6(src="2001:db8::10", dst="2001:db8::20")/TCP(sport=5000, dport=443)
+    ipv6_pkt.time = 1763276400.0
+    sessions = build_sessions([ipv6_pkt])
+    timeline = build_timeline([ipv6_pkt])
+    _record(
+        "investigation builds IPv6 session",
+        len(sessions) == 1 and sessions[0]["src"] == "2001:db8::10",
+    )
+    _record(
+        "investigation builds IPv6 timeline",
+        len(timeline) == 1 and timeline[0]["source_ip"] == "2001:db8::10",
+    )
+
+    unsafe_case = "../CASE 001/../../escape"
+    safe_case = _safe_case_id(unsafe_case)
+    _record(
+        "incident case id sanitized",
+        "/" not in safe_case and "\\" not in safe_case and ".." not in safe_case,
+    )
+
+    with tempfile.TemporaryDirectory() as td:
+        prefix = os.path.join(td, "reports", "case")
+        paths = generate_incident_report(
+            [ipv6_pkt],
+            prefix,
+            case_id=unsafe_case,
+            evidence_files=[],
+        )
+        report_root = os.path.abspath(os.path.join(td, "reports"))
+        _record(
+            "incident report path remains under requested directory",
+            os.path.abspath(paths["json"]).startswith(report_root + os.sep),
+        )
+
+
+def check_cli_input_validation():
+    cases = [
+        (["c", "--pc", "-1"], "--pc must be a positive integer"),
+        (["lh", "--timeout", "0"], "--timeout must be positive"),
+        (["c", "--pc", "1", "--alert-on", "101"], "--alert-on must be between 0 and 100"),
+        (["c", "--pc", "1", "--alert-file", "alerts.log"], "--alert-file requires --alert-on"),
+        (["c", "--pc", "1", "--alert-exit"], "--alert-exit requires --alert-on"),
+    ]
+    for args, expected in cases:
+        result = _run_cli(args, timeout=15)
+        output = result.stdout + result.stderr
+        _record(
+            f"cli rejects invalid input: {expected}",
+            result.returncode != 0 and expected in output,
+            detail=output[:180],
+        )
+
+
+def check_intel_file_bounds():
+    from unittest.mock import patch
+    from Utils.intel import load_stix_bundle, MAX_INTEL_FILE_MB
+
+    with patch("Utils.intel.os.path.getsize", return_value=(MAX_INTEL_FILE_MB + 1) * 1024 * 1024):
+        try:
+            load_stix_bundle("simulated-large.stix2.json")
+        except ValueError as exc:
+            _record("intel file size limit enforced", f"maximum is {MAX_INTEL_FILE_MB} MiB" in str(exc))
+        else:
+            _record("intel file size limit enforced", False)
+
+
+
+def check_cli_icmp6():
+    from Utils.filters import parse_filter_string
+
+    parsed = parse_filter_string("ICMP6")
+    _record(
+        "filter parser accepts case-insensitive ICMPv6",
+        parsed == {"protocol": "icmp6"},
+    )
+
+
+
 def main():
     print("=" * 70)
     print("SecureNet Analyzer - automated verification")
@@ -654,6 +806,11 @@ def main():
     check_lh_timeout_flag_accepted()
     check_security_core()
     check_input_hardening()
+
+    check_code_hardening_regressions()
+    check_cli_input_validation()
+    check_intel_file_bounds()
+    check_cli_icmp6()
 
     print("=" * 70)
     print(f"Results: {len(PASS)} passed, {len(FAIL)} failed")

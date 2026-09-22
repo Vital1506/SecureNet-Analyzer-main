@@ -5,10 +5,10 @@ from scapy.all import IP, IPv6, TCP, UDP, ICMP
 
 
 IPV4_CONDITION_RE = re.compile(
-    r"(?P<direction>src|dst)\s+host\s+(?P<ip>\S+)"
+    r"(?P<direction>src|dst)\s+host\s+(?P<ip>\S+)", re.IGNORECASE
 )
 PORT_CONDITION_RE = re.compile(
-    r"(?P<direction>src|dst)\s+port\s+(?P<port>\d+)"
+    r"(?P<direction>src|dst)\s+port\s+(?P<port>\d+)", re.IGNORECASE
 )
 PROTOCOL_CONDITION_RE = re.compile(
     r"(?P<protocol>tcp|udp|icmp|icmp6|ip|ipv6)\b", re.IGNORECASE
@@ -80,8 +80,13 @@ def packet_filter(packet, filter_criteria):
 
     if 'protocol' in filter_criteria:
         expected = filter_criteria['protocol'].lower()
-        protocol_name = _protocol_name(packet)
-        if protocol_name != expected:
+        if expected == 'ip':
+            if not has_ip:
+                return False
+        elif expected == 'ipv6':
+            if not has_ipv6:
+                return False
+        elif _protocol_name(packet) != expected:
             return False
 
     return True
@@ -92,6 +97,8 @@ def _protocol_name(packet):
         return 'tcp'
     if packet.haslayer(UDP):
         return 'udp'
+    if packet.haslayer(IPv6) and packet[IPv6].nh == 58:
+        return 'icmp6'
     if packet.haslayer(ICMP):
         return 'icmp'
     if packet.haslayer(IPv6):
@@ -102,42 +109,39 @@ def _protocol_name(packet):
 
 
 def parse_filter_string(filter_str):
+    """Parse the explicit filter language and reject unsupported input."""
     if filter_str is None or filter_str.strip().lower() == "all":
         return None
 
     filter_dict = {}
-    conditions = filter_str.split(' and ')
+    conditions = re.split(r"\s+and\s+", filter_str.strip(), flags=re.IGNORECASE)
 
     for condition in conditions:
         condition = condition.strip()
         if not condition:
-            continue
+            raise ValueError("Empty filter condition is not allowed.")
 
-        lowered = condition.lower()
-
-        ip_match = IPV4_CONDITION_RE.search(condition)
+        ip_match = IPV4_CONDITION_RE.fullmatch(condition)
         if ip_match:
-            ip = ip_match.group('ip')
-            direction = ip_match.group('direction')
-            if _validate_ipv4(ip):
-                key = f"{direction}_ip"
-                filter_dict[key] = ip
-                continue
-            if _validate_ipv6(ip):
-                key = f"{direction}_ip"
-                filter_dict[key] = ip
-                continue
-
-        port_match = PORT_CONDITION_RE.search(condition)
-        if port_match:
-            port = int(port_match.group('port'))
-            direction = port_match.group('direction')
-            key = f"{direction}_port"
-            filter_dict[key] = port
+            ip = ip_match.group("ip")
+            if not (_validate_ipv4(ip) or _validate_ipv6(ip)):
+                raise ValueError(f"Invalid IP address in filter: {ip}")
+            filter_dict[f"{ip_match.group('direction')}_ip"] = ip
             continue
 
-        protocol_match = PROTOCOL_CONDITION_RE.search(condition)
+        port_match = PORT_CONDITION_RE.fullmatch(condition)
+        if port_match:
+            port = int(port_match.group("port"))
+            if not 1 <= port <= 65535:
+                raise ValueError(f"Port must be between 1 and 65535: {port}")
+            filter_dict[f"{port_match.group('direction')}_port"] = port
+            continue
+
+        protocol_match = PROTOCOL_CONDITION_RE.fullmatch(condition)
         if protocol_match:
-            filter_dict['protocol'] = protocol_match.group('protocol').lower()
+            filter_dict["protocol"] = protocol_match.group("protocol").lower()
+            continue
+
+        raise ValueError(f"Unsupported filter condition: {condition}")
 
     return filter_dict

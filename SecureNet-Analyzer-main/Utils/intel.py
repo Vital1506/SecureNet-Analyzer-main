@@ -34,6 +34,8 @@ IPV4_PATTERN = re.compile(r"ipv4-addr:value\s*=\s*'([^']+)'", re.IGNORECASE)
 IPV6_PATTERN = re.compile(r"ipv6-addr:value\s*=\s*'([^']+)'", re.IGNORECASE)
 
 SAMPLE_STIX_PATH = os.path.join(os.path.dirname(__file__), "sample_intel.stix2.json")
+MAX_INTEL_FILE_MB = 32
+MAX_STIX_OBJECTS = 100_000
 
 
 def _is_valid_ip(value: str) -> bool:
@@ -61,19 +63,37 @@ def _extract_ips_from_indicator(indicator: Dict[str, Any]) -> Tuple[List[str], L
 
 
 def load_stix_bundle(path: str) -> List[Dict[str, Any]]:
-    """Load a STIX2 bundle JSON file and return the list of objects."""
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    """Load a bounded STIX2 JSON file and return its objects."""
+    file_size = os.path.getsize(path)
+    max_bytes = MAX_INTEL_FILE_MB * 1024 * 1024
+    if file_size > max_bytes:
+        raise ValueError(
+            f"Threat-intel file is {file_size / (1024 * 1024):.1f} MiB; "
+            f"maximum is {MAX_INTEL_FILE_MB} MiB."
+        )
+
+    with open(path, "r", encoding="utf-8") as handle:
+        data = json.load(handle)
 
     if isinstance(data, dict) and "objects" in data:
-        return data["objects"]
+        objects = data["objects"]
+    elif isinstance(data, list):
+        objects = data
+    else:
+        raise ValueError(
+            "Unsupported STIX2 bundle format. Expected an object with an 'objects' list, or a JSON array."
+        )
 
-    if isinstance(data, list):
-        return data
-
-    raise ValueError(
-        "Unsupported STIX2 bundle format. Expected an object with an 'objects' list, or a JSON array."
-    )
+    if not isinstance(objects, list):
+        raise ValueError("STIX2 'objects' must be a JSON array.")
+    if len(objects) > MAX_STIX_OBJECTS:
+        raise ValueError(
+            f"Threat-intel bundle contains {len(objects)} objects; "
+            f"maximum is {MAX_STIX_OBJECTS}."
+        )
+    if not all(isinstance(obj, dict) for obj in objects):
+        raise ValueError("Every STIX2 object must be a JSON object.")
+    return objects
 
 
 def extract_iocs(bundle_path: str) -> Dict[str, Any]:
@@ -156,7 +176,12 @@ def run_intel(args) -> None:
             print(f"Intel source not found: {bundle_path}")
             sys.exit(1)
 
-    iocs = extract_iocs(bundle_path)
+    try:
+        iocs = extract_iocs(bundle_path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"Unable to load threat intelligence: {exc}")
+        sys.exit(1)
+
     print_intel_report(iocs)
 
     total_iocs = len(iocs["ipv4_set"]) + len(iocs["ipv6_set"])

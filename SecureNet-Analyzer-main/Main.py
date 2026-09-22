@@ -137,6 +137,34 @@ def _security_summary_table(summary):
     return "\n".join(lines)
 
 
+def _handle_threshold_alert(summary, args):
+    """Emit a risk-threshold alert and return whether the threshold was crossed."""
+    if args.alert_on is None or summary["risk_score"] < args.alert_on:
+        return False
+
+    alert_msg = (
+        f"\nALERT: Risk score {summary['risk_score']}/100 "
+        f"meets/exceeds threshold {args.alert_on}."
+    )
+    print(alert_msg)
+
+    if args.alert_file:
+        with open(args.alert_file, "a", encoding="utf-8") as handle:
+            handle.write(
+                f"{summary['risk_level']} | score={summary['risk_score']} | "
+                f"events={summary['suspicious_events']} | blocked={summary['blocked_hits']} | "
+                f"sources={summary['most_active_source']} | "
+                f"dests={summary['most_active_destination']} | "
+                f"port={summary['most_common_port']}\n"
+            )
+        print(f"Alert logged to {args.alert_file}")
+
+    if args.alert_exit:
+        sys.exit(2)
+
+    return True
+
+
 def start_application(args):
     # ---- Blocklist management (local list) ----
     if args.option == "block":
@@ -210,10 +238,13 @@ def start_application(args):
 
     # ---- Live host detection ----
     if args.option == "lh":
-        if args.ip:
-            detect_live_hosts(args.ip, timeout=args.timeout, max_hosts=args.max_hosts)
-        else:
+        if not args.ip:
             print("Provide IP using --ip")
+            sys.exit(1)
+        try:
+            detect_live_hosts(args.ip, timeout=args.timeout, max_hosts=args.max_hosts)
+        except (OSError, ValueError) as exc:
+            print(f"Live-host scan refused: {exc}")
             sys.exit(1)
 
     # ---- Offline PCAP investigation ----
@@ -244,6 +275,7 @@ def start_application(args):
         if args.summary or args.alert_on is not None:
             summary = get_security_summary(packets)
             print(_security_summary_table(summary))
+            _handle_threshold_alert(summary, args)
 
         if args.a:
             print(f"\nAnalyzing {len(packets)} packets...")
@@ -289,7 +321,12 @@ def start_application(args):
                 print(f"Interface '{args.i}' not found. Available: {', '.join(list_interfaces())}")
                 sys.exit(1)
 
-        filter_criteria = parse_filter_string(args.f)
+        try:
+            filter_criteria = parse_filter_string(args.f)
+        except ValueError as exc:
+            print(f"Invalid filter: {exc}")
+            sys.exit(1)
+
         captured_packets = start_capture(args.pc, filter_criteria, args.i)
 
         if not captured_packets:
@@ -299,21 +336,7 @@ def start_application(args):
         if args.summary or args.alert_on is not None:
             summary = get_security_summary(captured_packets)
             print(_security_summary_table(summary))
-
-        if args.alert_on is not None and summary["risk_score"] >= args.alert_on:
-            alert_msg = (
-                f"\nALERT: Risk score {summary['risk_score']}/100 meets/exceeds threshold {args.alert_on}."
-            )
-            print(alert_msg)
-            if args.alert_file:
-                with open(args.alert_file, "a", encoding="utf-8") as f:
-                    f.write(f"{summary['risk_level']} | score={summary['risk_score']} | "
-                            f"events={summary['suspicious_events']} | blocked={summary['blocked_hits']} | "
-                            f"sources={summary['most_active_source']} | dests={summary['most_active_destination']} | "
-                            f"port={summary['most_common_port']}\n")
-                print(f"Alert logged to {args.alert_file}")
-            if args.alert_exit:
-                sys.exit(2)
+            _handle_threshold_alert(summary, args)
 
         if args.a:
             print(f"\nAnalyzing {len(captured_packets)} packets...")
@@ -404,12 +427,20 @@ def main():
 
     args = parser.parse_args()
 
-    if args.option == "c" and not args.pc and not args.block and not args.unblock and not args.list_blocks and not args.clear_blocks:
-        print("Provide --pc (packet count)")
-        sys.exit(1)
-
     if args.max_pcap_mb <= 0 or args.max_pcap_packets <= 0:
         parser.error("--max-pcap-mb and --max-pcap-packets must be positive")
+    if args.option == "c" and (args.pc is None or args.pc <= 0):
+        parser.error("--pc must be a positive integer")
+    if args.timeout <= 0:
+        parser.error("--timeout must be positive")
+    if args.max_hosts <= 0:
+        parser.error("--max-hosts must be positive")
+    if args.alert_on is not None and not 0 <= args.alert_on <= 100:
+        parser.error("--alert-on must be between 0 and 100")
+    if args.alert_file and args.alert_on is None:
+        parser.error("--alert-file requires --alert-on")
+    if args.alert_exit and args.alert_on is None:
+        parser.error("--alert-exit requires --alert-on")
 
     if args.option == "pcap" and not args.input:
         print("Provide --input <pcap> for PCAP investigation.")

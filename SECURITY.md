@@ -2,20 +2,27 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+SecureNet Analyzer is currently maintained from the repository `main` branch.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| Version / branch | Security fixes |
+|---|---|
+| `main` | ✅ Supported |
+| Older commits | ❌ Not supported |
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+Please report security vulnerabilities privately rather than opening a public issue.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+Open a GitHub security advisory for this repository when available, or contact the project maintainer through the contact details in the repository README.
+
+Include:
+- a clear description of the issue
+- affected file/module and reproducible steps
+- security impact
+- any suggested mitigation
+
+Do not include real credentials, private network captures, or other sensitive evidence in a public issue.
+
+## Response Expectations
+
+Security reports will be reviewed as soon as practical. Please allow time for reproduction, impact assessment, remediation, and release of a fix before public disclosure.

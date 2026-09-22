@@ -30,14 +30,18 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
-          python -m pip install pylint bandit pip-audit
+          python -m pip install pylint bandit pip-audit build
       - name: Run automated verification
         run: python test_all.py
       - name: Compile Python sources
         run: python -m compileall -q Main.py Utils
+      - name: Build package
+        run: python -m build
+        working-directory: ${{ github.workspace }}
+
       - name: Run Bandit security scan
         run: bandit -r Main.py Utils -ll
       - name: Audit dependencies
         run: pip-audit -r requirements.txt
       - name: Run Pylint
-        run: pylint Main.py Utils --disable=missing-module-docstring,missing-function-docstring,missing-class-docstring,invalid-name,too-few-public-methods,broad-exception-caught,import-outside-toplevel,no-name-in-module,,line-too-long,too-many-branches,too-many-locals,too-many-return-statements,consider-using-with,unused-variable,unused-import,duplicate-code,no-else-break,too-many-statements,too-many-boolean-expressions,subprocess-run-check,bare-except,unspecified-encoding
+        run: pylint Main.py Utils --disable=missing-module-docstring,missing-function-docstring,missing-class-docstring,invalid-name,too-few-public-methods,broad-exception-caught,import-outside-toplevel,no-name-in-module,line-too-long,too-many-branches,too-many-locals,too-many-return-statements,consider-using-with,unused-variable,unused-import,duplicate-code,no-else-break,too-many-statements,too-many-boolean-expressions,subprocess-run-check,bare-except,unspecified-encoding
