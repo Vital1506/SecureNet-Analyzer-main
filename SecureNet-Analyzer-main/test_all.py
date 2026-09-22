@@ -650,6 +650,25 @@ def check_lh_timeout_flag_accepted():
     _record("cli lh accepts --timeout/--max-hosts", ok, detail=output[:200])
 
 
+    from Utils import blocklist
+
+    with tempfile.TemporaryDirectory() as td:
+        original_blocklist_path = blocklist.BLOCKLIST_FILE
+        blocklist.BLOCKLIST_FILE = os.path.join(td, "blocked_ips.txt")
+        try:
+            blocklist.save_blocklist(["10.0.0.1"])
+            with patch("Utils.blocklist.append_audit", side_effect=OSError("audit unavailable")):
+                try:
+                    blocklist.add_ip_to_blocklist("10.0.0.2")
+                except OSError:
+                    pass
+            _record(
+                "blocklist rolls back on audit failure",
+                blocklist.load_blocklist() == ["10.0.0.1"],
+            )
+        finally:
+            blocklist.BLOCKLIST_FILE = original_blocklist_path
+
 def check_code_hardening_regressions():
     from unittest.mock import patch
 
