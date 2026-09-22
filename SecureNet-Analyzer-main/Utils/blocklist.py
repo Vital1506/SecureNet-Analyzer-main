@@ -49,6 +49,16 @@ def save_blocklist(blocked_ips):
     atomic_write_text(BLOCKLIST_FILE, content)
 
 
+def _commit_with_audit(previous, current, action, metadata):
+    """Persist state and roll it back if the required audit event fails."""
+    save_blocklist(current)
+    try:
+        append_audit(action, metadata=metadata)
+    except Exception:
+        save_blocklist(previous)
+        raise
+
+
 def add_ip_to_blocklist(ip):
     """Validate and add one IP, recording a tamper-evident audit event."""
     clean_ip = _normalize_ip(ip)
@@ -59,9 +69,9 @@ def add_ip_to_blocklist(ip):
     if clean_ip in blocked:
         return False
 
+    previous = list(blocked)
     blocked.append(clean_ip)
-    save_blocklist(blocked)
-    append_audit("BLOCKLIST_ADD", metadata={"ip": clean_ip})
+    _commit_with_audit(previous, blocked, "BLOCKLIST_ADD", {"ip": clean_ip})
     return True
 
 
@@ -75,18 +85,24 @@ def remove_ip_from_blocklist(ip):
     if clean_ip not in blocked:
         return False
 
+    previous = list(blocked)
     blocked.remove(clean_ip)
-    save_blocklist(blocked)
-    append_audit("BLOCKLIST_REMOVE", metadata={"ip": clean_ip})
+    _commit_with_audit(previous, blocked, "BLOCKLIST_REMOVE", {"ip": clean_ip})
     return True
 
 
 def clear_blocklist():
     """Clear all local blocklist entries and audit the operation."""
     previous = load_blocklist()
-    save_blocklist([])
-    append_audit("BLOCKLIST_CLEAR", metadata={"removed_count": len(previous)})
-    return bool(previous)
+    if not previous:
+        return False
+    _commit_with_audit(
+        previous,
+        [],
+        "BLOCKLIST_CLEAR",
+        {"removed_count": len(previous)},
+    )
+    return True
 
 
 def is_blocked_ip(ip):
