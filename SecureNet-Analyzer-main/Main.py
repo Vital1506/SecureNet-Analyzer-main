@@ -27,6 +27,7 @@ from Utils.block_engine import (
 )
 from Utils.intel import run_intel
 from Utils.incident_report import generate_incident_report
+from Utils.audit import verify_audit_log
 from Utils.security import (
     PASSWORD_FILE,
     hash_password,
@@ -197,6 +198,16 @@ def start_application(args):
         print(block_status())
         return
 
+    # ---- Audit verification ----
+    if args.option == "audit-verify":
+        valid, count, detail = verify_audit_log()
+        if valid:
+            print(f"Audit log valid: {count} event(s) verified.")
+        else:
+            print(f"Audit log verification FAILED: {detail}")
+            sys.exit(1)
+        return
+
     # ---- Live host detection ----
     if args.option == "lh":
         if args.ip:
@@ -351,7 +362,7 @@ def main():
 
     parser.add_argument(
         "option",
-        choices=["c", "pcap", "lh", "block", "block-activate", "block-deactivate", "block-status", "intel"],
+        choices=["c", "pcap", "lh", "block", "block-activate", "block-deactivate", "block-status", "audit-verify", "intel"],
         help=(
             "c: live capture | pcap: offline PCAP investigation | lh: live-host detection | block: local blocklist management | "
             "block-activate: enforce blocked IPs via firewall | block-deactivate: remove firewall rules | "
