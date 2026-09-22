@@ -736,13 +736,14 @@ def check_intel_file_bounds():
 
 
 def check_cli_icmp6():
-    r = _run_cli(["c", "--pc", "1", "--f", "ICMP6"], timeout=10)
-    output = r.stdout + r.stderr
+    from Utils.filters import parse_filter_string
+
+    parsed = parse_filter_string("ICMP6")
     _record(
-        "cli accepts case-insensitive protocol filter",
-        "Invalid filter" not in output and "unsupported filter condition" not in output.lower(),
-        detail=output[:200],
+        "filter parser accepts case-insensitive ICMPv6",
+        parsed == {"protocol": "icmp6"},
     )
+
 
 
 def main():
