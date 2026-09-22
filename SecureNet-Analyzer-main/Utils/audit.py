@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from Utils.security import atomic_write_text
 
-AUDIT_FILE = "audit.log"
+AUDIT_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "audit.log")
 AUDIT_VERSION = 1
 
 
