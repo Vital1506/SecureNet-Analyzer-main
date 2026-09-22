@@ -499,6 +499,33 @@ Run the exact current CLI contract:
 python Main.py --help
 ```
 
+### Key options
+
+| Option | Purpose |
+|:---|:---|
+| `--pc` | Number of packets for live capture |
+| `--i` | Capture interface |
+| `--f` | Traffic filter expression |
+| `--a` | Analyze captured traffic |
+| `--summary` | Print a security summary |
+| `--s` | Save captured traffic |
+| `--p` | Save PCAP output |
+| `--t` | Save TXT output |
+| `--html` | Save HTML output |
+| `--report-prefix` | Generate HTML/TXT/JSON incident reports |
+| `--case-id` | Set investigation case ID |
+| `--analyst` | Set analyst name in the report |
+| `--organization` | Set organization/team in the report |
+| `--resolve-hostnames` | Opt in to reverse-DNS report enrichment |
+| `--max-pcap-mb` | Set the offline PCAP size limit |
+| `--max-pcap-packets` | Set the offline PCAP packet limit |
+| `--alert-on` | Set the risk-score alert threshold |
+| `--alert-file` | Append threshold alerts to a file |
+| `--alert-exit` | Exit with code 2 when the threshold is crossed |
+| `--confirm-firewall` | Confirm a real Windows Firewall change |
+| `--dry-run` | Preview firewall enforcement without applying rules |
+| `--offline` | Allow only offline/read-only-safe workflows to skip login |
+
 ---
 
 <h2 align="center">🚀 USAGE</h2>
