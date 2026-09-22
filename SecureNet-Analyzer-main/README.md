@@ -15,7 +15,7 @@
 | 📡 **Packet Capture & Analysis** | Capture traffic from any network interface and extract IPs, ports, protocols, and payload details |
 | 🔍 **Live Host Detection** | Enumerate live devices via ARP requests, mapping IP, MAC address, and NIC vendor |
 | 🛠 **Custom Packet Crafting** | Build and send custom packets for controlled network testing and assessment |
-| 🔐 **SHA-256 Authentication** | User login secured with SHA-256 password hashing — no plaintext credential storage |
+| 🔐 **Hardened Authentication** | Salted scrypt password verification with legacy SHA-256 migration and failed-attempt throttling |
 | 💾 **Data Export** | Export captured traffic to **PCAP**, **TXT**, or **HTML** for further analysis (e.g., in Wireshark) |
 | 🚨 **Vulnerability Signal Detection** | Flag unusual traffic patterns that may indicate security issues |
 | 📋 **Local IP Blocklist** | Track and flag known-bad IPs; blocklist hits influence risk scoring |
@@ -28,7 +28,8 @@
 | 🧩 **MITRE ATT&CK Mapping** | Map observed network/payload patterns to ATT&CK technique hypotheses for analyst triage |
 | 🎯 **IOC Extraction** | Extract observed IPs, domains, URLs, and ports into machine-readable investigation data |
 | 🔗 **Session Aggregation** | Group traffic into source/destination/protocol/port sessions with packet and byte counts |
-| 🧾 **Evidence Integrity & Custody** | SHA-256 evidence manifest plus an automated report-generation custody record |
+| 🧾 **Evidence Integrity & Custody** | SHA-256 evidence manifest plus automated custody records |
+| 🛡️ **Secure Core Hardening** | scrypt password storage, authenticated enforcement, bounded PCAP ingestion, atomic state writes, and tamper-evident audit logging |
 | 📦 **SIEM-Friendly JSON** | Export structured case data containing hosts, events, sessions, timeline, IOCs, and ATT&CK mappings |
 
 ---
@@ -43,7 +44,7 @@
 | **colorama** | Terminal color output (pip installs it with requirements) |
 | **Administrator / root privileges** | Required for raw packet capture **and** for firewall block enforcement on Windows |
 
-All Python dependencies are pinned in [`requirements.txt`](requirements.txt).
+Runtime dependencies are listed in [`requirements.txt`](requirements.txt). Release builds should lock and verify exact dependency versions before deployment.
 
 ---
 
@@ -69,9 +70,9 @@ python Main.py [option] [arguments]
 ```
 
 ### 3. First-run setup
-On first run, the tool prompts you to set a login password. The password is hashed with SHA-256 and stored in `password_hash.txt`. Every subsequent run requires login before any network operation.
+On first run, the tool prompts you to set a login password. Passwords are stored as salted scrypt verifiers in `password_hash.txt`. Legacy SHA-256 records are upgraded after a successful login. State-changing and network-operating actions require authentication.
 
-For automation or non-interactive use (e.g., blocklist management in scripts), pass `--offline` to skip the login prompt:
+For read-only offline workflows, `--offline` can skip the login prompt. It cannot bypass authentication for capture, host discovery, blocklist mutation, firewall enforcement, or threat-intel auto-blocking.
 ```bash
 python Main.py block --list-blocks --offline
 ```
@@ -80,7 +81,7 @@ python Main.py block --list-blocks --offline
 
 ## Usage
 
-SecureNet Analyzer is driven entirely through the CLI. The first positional argument selects the **mode**: `c` (capture), `lh` (live-host detection), `block` (blocklist management), `block-activate`, `block-deactivate`, `block-status`, or `intel`.
+SecureNet Analyzer is driven entirely through the CLI. The first positional argument selects the **mode**: `c` (capture), `pcap` (offline investigation), `lh` (live-host detection), `block` (blocklist management), `block-activate`, `block-deactivate`, `block-status`, `audit-verify`, or `intel`.
 
 ### Primary modes
 | Mode | Description |
@@ -92,6 +93,7 @@ SecureNet Analyzer is driven entirely through the CLI. The first positional argu
 | `block-activate` | Enforce the local blocklist via Windows Firewall rules |
 | `block-deactivate` | Remove Windows Firewall block rules created by this tool |
 | `block-status` | Show current firewall block state and cross-check against the local blocklist |
+| `audit-verify` | Verify the local tamper-evident audit hash chain |
 | `intel` | Load a STIX2 threat-intel bundle, extract IOCs, and optionally add them to the blocklist |
 
 ### Common arguments
@@ -112,8 +114,9 @@ SecureNet Analyzer is driven entirely through the CLI. The first positional argu
 | `--unblock [ip]` | Remove an IP address from the local blocklist |
 | `--list-blocks` | Show all blocked IPs in the local blocklist |
 | `--clear-blocks` | Clear the local blocklist |
-| `--offline` | Skip the login prompt (for automation / non-interactive use) |
-| `--dry-run` | Simulate firewall blocking without creating real rules (block-activate mode) |
+| `--offline` | Skip login only for read-only/offline-safe workflows; cannot bypass enforcement authentication |
+| `--dry-run` | Simulate firewall operations without creating real rules |
+| `--confirm-firewall` | Explicitly confirm a real Windows Firewall change |
 | `--timeout [seconds]` | ARP scan timeout (live-host mode, default 5) |
 | `--max-hosts [n]` | Maximum hosts to report (live-host mode, default 254) |
 | `--intel-source [path]` | Path to a STIX2 JSON bundle, or `sample` for the bundled sample |
@@ -192,7 +195,7 @@ python Main.py block-status --offline
 python Main.py block-deactivate --offline
 ```
 
-`block-activate` creates one inbound and one outbound Windows Firewall block rule per blocked IP (`SecureNet_Block_In_<ip>` and `SecureNet_Block_Out_<ip>`). Invalid IPs in the blocklist are skipped. Use `--dry-run` to preview without creating real rules.
+`block-activate` creates one inbound and one outbound Windows Firewall block rule per blocked IP (`SecureNet_Block_In_<ip>` and `SecureNet_Block_Out_<ip>`). Invalid IPs are skipped. Real firewall changes require Administrator privileges and the explicit `--confirm-firewall` flag. Use `--dry-run` for a preview.
 
 ### Example 6 — Threat intel ingestion
 ```bash
@@ -207,6 +210,7 @@ The `intel` mode loads a STIX2 JSON bundle, extracts IPv4/IPv6 indicators, print
 
 
 ### Example 7 — Offline PCAP investigation
+Offline investigation enforces file-size and packet-count limits. Adjust them explicitly when handling larger evidence sets, for example `--max-pcap-mb 1024 --max-pcap-packets 1000000`.
 ```bash
 python Main.py pcap --input evidence_CASE001.pcap --summary --report-prefix reports\\CASE001 --case-id CASE-001 --analyst "Security Analyst" --organization "Example SOC" --offline
 ```
@@ -220,7 +224,13 @@ For an authorized capture or offline PCAP, SecureNet Analyzer can identify highe
 
 Each behavioral finding contains a rule ID, rule-pack version, severity, confidence, timestamps, observations, MITRE reference, and the packet numbers used as evidence.
 
-### Example 9 — Investigation-grade incident package
+### Example 9 — Verify audit integrity
+```bash
+python Main.py audit-verify --offline
+```
+Confirms that the local audit chain is internally consistent. A valid chain is tamper-evident; it is not a substitute for an external immutable log.
+
+### Example 10 — Investigation-grade incident package
 ```bash
 python Main.py c --i WiFi --pc 500 --a --summary --s --p evidence_CASE001.pcap --report-prefix reports\\CASE001 --case-id CASE-001 --analyst "Security Analyst" --organization "Example SOC"
 ```

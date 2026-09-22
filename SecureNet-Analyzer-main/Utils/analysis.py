@@ -6,6 +6,8 @@ from scapy.all import IP, TCP, UDP, ICMP, IPv6, Raw
 from Utils.blocklist import is_blocked_ip
 from Utils.detection_engine import run_detections
 
+MAX_ANALYSIS_PAYLOAD_BYTES = 64 * 1024
+
 
 def calculate_risk_score(captured_packets):
     packet_score = 0
@@ -124,9 +126,16 @@ def extract_packet_info(packet):
 
 
 def extract_payload_data(packet):
-    if Raw in packet:
-        return packet[Raw].load.decode(errors='ignore')
-    return ""
+    """Decode at most a bounded amount of application payload for analysis."""
+    if Raw not in packet:
+        return ""
+    payload = packet[Raw].load
+    if not isinstance(payload, bytes):
+        payload = bytes(payload)
+    truncated = len(payload) > MAX_ANALYSIS_PAYLOAD_BYTES
+    payload = payload[:MAX_ANALYSIS_PAYLOAD_BYTES]
+    decoded = payload.decode(errors="ignore")
+    return f"{decoded}\n[PAYLOAD TRUNCATED]" if truncated else decoded
 
 
 def get_packet_timestamp(packet):

@@ -25,6 +25,8 @@ from typing import List, Tuple
 
 import colorama
 
+from Utils.audit import append_audit
+
 colorama.init(autoreset=True)
 
 BLOCK_PREFIX_IN = "SecureNet_Block_In_"
@@ -32,12 +34,15 @@ BLOCK_PREFIX_OUT = "SecureNet_Block_Out_"
 
 
 def _elevated() -> bool:
-    """Best-effort check for an elevated/Administrator shell on Windows."""
+    """Check whether Windows is running this process as Administrator."""
     if sys.platform != "win32":
         return False
     try:
-        return shutil.which("netsh") is not None
-    except Exception:
+        import ctypes
+        return shutil.which("netsh") is not None and bool(
+            ctypes.windll.shell32.IsUserAnAdmin()
+        )
+    except (AttributeError, OSError):
         return False
 
 
@@ -62,14 +67,7 @@ def _rule_name(prefix: str, ip: str) -> str:
 
 
 def _powershell_cmd(script: str) -> List[str]:
-    return [
-        "powershell",
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-Command",
-        script,
-    ]
+    return ["powershell", "-NoProfile", "-NonInteractive", "-Command", script]
 
 
 def _netsh(action: str, rule_name: str, direction: str, remote_ip: str) -> List[str]:
@@ -114,7 +112,7 @@ def _rule_exists(rule_name: str) -> bool:
         f"if ($r) {{ 1 }} else {{ 0 }} "
         f"}} catch {{ 0 }}"
     )
-    code = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script]
+    code = ["powershell", "-NoProfile", "-NonInteractive", "-Command", script]
     try:
         proc = subprocess.run(code, capture_output=True, text=True, timeout=30)
         return proc.stdout.strip() == "1"
@@ -193,6 +191,7 @@ def block_activate(ips: List[str], dry_run: bool = False) -> str:
     lines.append("")
     lines.append(f"Result: {created} created, {already} already present, {failed} failed.")
     lines.extend(details)
+    append_audit("FIREWALL_BLOCK_ACTIVATE", metadata={"requested_ips": valid, "created": created, "already_present": already, "failed": failed, "dry_run": dry_run})
     return "\n".join(lines)
 
 
@@ -263,6 +262,7 @@ def block_deactivate(dry_run: bool = False) -> str:
 
     lines.append(f"Block deactivation — removed {removed} rule(s), {missing} not found/skipped.")
     lines.extend(details)
+    append_audit("FIREWALL_BLOCK_DEACTIVATE", metadata={"removed": removed, "missing": missing, "dry_run": dry_run})
     return "\n".join(lines)
 
 

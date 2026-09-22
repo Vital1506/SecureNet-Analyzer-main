@@ -1,5 +1,12 @@
 name: Pylint
 
+permissions:
+  contents: read
+
+concurrency:
+  group: securenet-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on: [push, pull_request]
 
 jobs:
@@ -12,9 +19,9 @@ jobs:
       run:
         working-directory: SecureNet-Analyzer-main
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -23,8 +30,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
-          python -m pip install pylint
+          python -m pip install pylint bandit pip-audit
       - name: Run automated verification
         run: python test_all.py
+      - name: Compile Python sources
+        run: python -m compileall -q Main.py Utils
+      - name: Run Bandit security scan
+        run: bandit -r Main.py Utils -ll
+      - name: Audit dependencies
+        run: pip-audit -r requirements.txt
       - name: Run Pylint
         run: pylint Main.py Utils --disable=missing-module-docstring,missing-function-docstring,missing-class-docstring,invalid-name,too-few-public-methods,broad-exception-caught,import-outside-toplevel,no-name-in-module,,line-too-long,too-many-branches,too-many-locals,too-many-return-statements,consider-using-with,unused-variable,unused-import,duplicate-code,no-else-break,too-many-statements,too-many-boolean-expressions,subprocess-run-check,bare-except,unspecified-encoding

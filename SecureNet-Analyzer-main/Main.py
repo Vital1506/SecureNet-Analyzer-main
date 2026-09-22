@@ -1,10 +1,11 @@
 import argparse
-import hashlib
 import os
 import sys
+import time
 from getpass import getpass
 
-from scapy.all import rdpcap
+from scapy.error import Scapy_Exception
+from scapy.utils import PcapReader
 
 from Utils.blocklist import (
     add_ip_to_blocklist,
@@ -26,33 +27,43 @@ from Utils.block_engine import (
 )
 from Utils.intel import run_intel
 from Utils.incident_report import generate_incident_report
+from Utils.audit import verify_audit_log
+from Utils.security import (
+    PASSWORD_FILE,
+    hash_password,
+    load_password_record,
+    save_password_record,
+    verify_password as verify_password_record,
+)
 
-PASSWORD_FILE = "password_hash.txt"
-
-
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+MAX_PCAP_MB_DEFAULT = 512
+MAX_PCAP_PACKETS_DEFAULT = 500_000
+MAX_LOGIN_ATTEMPTS = 5
 
 
 def verify_password(input_password):
-    if os.path.exists(PASSWORD_FILE):
-        with open(PASSWORD_FILE, 'r') as f:
-            stored_hash = f.read().strip()
-            return stored_hash == hash_password(input_password)
-    return False
+    """Verify the configured password and transparently upgrade legacy SHA-256."""
+    record = load_password_record()
+    if record is None:
+        return False
+    valid, legacy = verify_password_record(input_password, record)
+    if valid and legacy:
+        save_password_record(hash_password(input_password))
+    return valid
 
 
 def set_password():
     password = getpass("Set a new password: ")
+    if len(password) < 12:
+        print("Password must be at least 12 characters long.")
+        sys.exit(1)
     confirm_password = getpass("Confirm password: ")
 
     if password != confirm_password:
         print("Passwords do not match.")
         sys.exit(1)
 
-    with open(PASSWORD_FILE, 'w') as f:
-        f.write(hash_password(password))
-
+    save_password_record(hash_password(password))
     print("Password set successfully.")
 
 
@@ -61,13 +72,53 @@ def login():
         print("No password set. Please set a new password.")
         set_password()
 
-    while True:
+    for attempt in range(1, MAX_LOGIN_ATTEMPTS + 1):
         password = getpass("Enter password: ")
         if verify_password(password):
             print("Login successful.")
-            break
-        else:
-            print("Incorrect password. Try again.")
+            return
+        print("Incorrect password.")
+        if attempt < MAX_LOGIN_ATTEMPTS:
+            time.sleep(attempt)
+
+    print("Too many failed login attempts. Exiting.")
+    sys.exit(1)
+
+
+def _requires_auth(args):
+    """Return whether this action must authenticate even when --offline is set."""
+    if args.option in {"c", "lh", "block-activate", "block-deactivate"}:
+        return True
+    if args.option == "block":
+        return bool(args.block or args.unblock or args.clear_blocks)
+    if args.option == "intel":
+        return bool(args.intel_auto_block)
+    return False
+
+
+def _read_pcap_bounded(path, max_mb, max_packets):
+    """Read a PCAP with explicit file and packet resource limits."""
+    if max_mb <= 0 or max_packets <= 0:
+        raise ValueError("PCAP resource limits must be positive.")
+    file_size = os.path.getsize(path)
+    max_bytes = max_mb * 1024 * 1024
+    if file_size > max_bytes:
+        raise ValueError(
+            f"PCAP is {file_size / (1024 * 1024):.1f} MiB; maximum is {max_mb} MiB."
+        )
+
+    packets = []
+    truncated = False
+    reader = PcapReader(path)
+    try:
+        for packet in reader:
+            if len(packets) >= max_packets:
+                truncated = True
+                break
+            packets.append(packet)
+    finally:
+        reader.close()
+    return packets, truncated, file_size
 
 
 def _security_summary_table(summary):
@@ -128,17 +179,33 @@ def start_application(args):
         if not blocked:
             print("Local blocklist is empty. Add IPs first with: Main.py block --block <ip>")
             sys.exit(1)
+        if not args.dry_run and not args.confirm_firewall:
+            print("Refusing firewall change without --confirm-firewall.")
+            sys.exit(1)
         state = block_activate(blocked, dry_run=args.dry_run)
         print(state)
         return
 
     if args.option == "block-deactivate":
+        if not args.dry_run and not args.confirm_firewall:
+            print("Refusing firewall change without --confirm-firewall.")
+            sys.exit(1)
         state = block_deactivate(dry_run=args.dry_run)
         print(state)
         return
 
     if args.option == "block-status":
         print(block_status())
+        return
+
+    # ---- Audit verification ----
+    if args.option == "audit-verify":
+        valid, count, detail = verify_audit_log()
+        if valid:
+            print(f"Audit log valid: {count} event(s) verified.")
+        else:
+            print(f"Audit log verification FAILED: {detail}")
+            sys.exit(1)
         return
 
     # ---- Live host detection ----
@@ -156,10 +223,19 @@ def start_application(args):
             sys.exit(1)
 
         try:
-            packets = rdpcap(args.input)
-        except (OSError, ValueError) as exc:
+            packets, truncated, file_size = _read_pcap_bounded(
+                args.input, args.max_pcap_mb, args.max_pcap_packets
+            )
+        except (OSError, ValueError, EOFError, Scapy_Exception) as exc:
             print(f"Unable to read PCAP: {exc}")
             sys.exit(1)
+
+        if truncated:
+            print(
+                f"PCAP analysis capped at {args.max_pcap_packets} packets; "
+                "remaining packets were not analyzed."
+            )
+        print(f"Loaded PCAP: {file_size / (1024 * 1024):.2f} MiB")
 
         if not packets:
             print("PCAP contains no packets.")
@@ -193,6 +269,7 @@ def start_application(args):
                 organization=args.organization,
                 interface=f"PCAP: {os.path.abspath(args.input)}",
                 evidence_files=[args.input],
+                resolve_hostnames=args.resolve_hostnames,
             )
             print("\nIncident report generated:")
             print(f"  HTML: {report_paths['html']}")
@@ -270,6 +347,7 @@ def start_application(args):
                 organization=args.organization,
                 interface=args.i or "Default interface",
                 evidence_files=evidence_files,
+                resolve_hostnames=args.resolve_hostnames,
             )
             print("\nIncident report generated:")
             print(f"  HTML: {report_paths['html']}")
@@ -284,7 +362,7 @@ def main():
 
     parser.add_argument(
         "option",
-        choices=["c", "pcap", "lh", "block", "block-activate", "block-deactivate", "block-status", "intel"],
+        choices=["c", "pcap", "lh", "block", "block-activate", "block-deactivate", "block-status", "audit-verify", "intel"],
         help=(
             "c: live capture | pcap: offline PCAP investigation | lh: live-host detection | block: local blocklist management | "
             "block-activate: enforce blocked IPs via firewall | block-deactivate: remove firewall rules | "
@@ -306,7 +384,8 @@ def main():
     parser.add_argument("--unblock", action="append", default=[], help="Remove an IP address from the local blocklist")
     parser.add_argument("--list-blocks", action="store_true", help="Show all blocked IPs in the local blocklist")
     parser.add_argument("--clear-blocks", action="store_true", help="Clear the local blocklist")
-    parser.add_argument("--offline", action="store_true", help="Skip login prompt. For automation / non-interactive use.")
+    parser.add_argument("--offline", action="store_true", help="Skip login only for read-only/offline-safe workflows.")
+    parser.add_argument("--confirm-firewall", action="store_true", help="Explicitly confirm a real Windows Firewall change.")
     parser.add_argument("--dry-run", action="store_true", help="Simulate firewall blocking without creating real rules")
     parser.add_argument("--timeout", type=int, default=5, help="ARP scan timeout in seconds (live-host mode)")
     parser.add_argument("--max-hosts", type=int, default=254, help="Maximum hosts to report (live-host mode)")
@@ -319,6 +398,9 @@ def main():
     parser.add_argument("--case-id", default="UNASSIGNED", help="Case or incident identifier for reporting")
     parser.add_argument("--analyst", default="Not specified", help="Analyst name for the report")
     parser.add_argument("--organization", default="Not specified", help="Organization/team name for the report")
+    parser.add_argument("--resolve-hostnames", action="store_true", help="Opt in to reverse-DNS lookups while generating reports")
+    parser.add_argument("--max-pcap-mb", type=int, default=MAX_PCAP_MB_DEFAULT, help="Maximum offline PCAP file size in MiB")
+    parser.add_argument("--max-pcap-packets", type=int, default=MAX_PCAP_PACKETS_DEFAULT, help="Maximum offline PCAP packets to analyze")
 
     args = parser.parse_args()
 
@@ -326,11 +408,17 @@ def main():
         print("Provide --pc (packet count)")
         sys.exit(1)
 
+    if args.max_pcap_mb <= 0 or args.max_pcap_packets <= 0:
+        parser.error("--max-pcap-mb and --max-pcap-packets must be positive")
+
     if args.option == "pcap" and not args.input:
         print("Provide --input <pcap> for PCAP investigation.")
         sys.exit(1)
 
-    if not args.offline:
+    if _requires_auth(args):
+        if args.offline:
+            print("Authentication required for this operation; --offline cannot bypass it.")
+            sys.exit(1)
         login()
     start_application(args)
 
