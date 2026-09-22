@@ -205,6 +205,46 @@ This project provides hands-on practice with:
 - PCAP-based investigation workflows
 - Integration with Wireshark as a deeper analysis companion
 
+## Incident / Investigation Reporting
+
+SecureNet Analyzer can generate a structured investigation report from a packet-capture session. The report is designed for security analysts and incident-response documentation.
+
+It includes:
+
+- Case ID, analyst, organization, interface, and generation timestamp
+- Executive risk summary
+- Observed IPs with packet and byte counts
+- First-seen and last-seen timestamps
+- Observed protocols and ports
+- Top communication peers
+- Blocklist hits
+- Security findings associated with each IP
+- Packet-level security-event timeline
+- JSON output for automation/SIEM workflows
+- Human-readable TXT output
+- HTML report suitable for sharing or printing
+- SHA-256 hashes for supplied evidence files
+- An explicit attribution limitation so an IP is not presented as proof of attacker identity
+
+Example:
+
+```powershell
+python Main.py c --i WiFi --pc 100 --a --summary --p case_001.pcap --report-prefix reports\case_001 --case-id CASE-001 --analyst "Security Analyst" --organization "Example SOC"
+```
+
+This produces:
+
+```text
+reports\case_001_CASE-001.html
+reports\case_001_CASE-001.txt
+reports\case_001_CASE-001.json
+case_001.pcap
+```
+
+The JSON file is intended for automation/SIEM ingestion, the TXT file provides a plain-text case record, and the HTML file provides a readable investigation report.
+
+> **Evidence note:** A generated report is supporting documentation, not by itself a legal determination or guaranteed court-admissible evidence. Preserve original captures and follow your organization's evidence-handling procedures.
+
 ## Troubleshooting
 
 | Issue | Fix |
