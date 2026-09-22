@@ -4,6 +4,8 @@ import os
 import sys
 from getpass import getpass
 
+from scapy.all import rdpcap
+
 from Utils.blocklist import (
     add_ip_to_blocklist,
     clear_blocklist,
@@ -79,6 +81,7 @@ def _security_summary_table(summary):
         f"  Most Active Source:  {summary['most_active_source']}",
         f"  Most Active Dest:    {summary['most_active_destination']}",
         f"  Most Common Port:    {summary['most_common_port']}",
+        f"  Behavioral Detections:{summary.get('behavioral_detections', 0)}",
     ]
     return "\n".join(lines)
 
@@ -145,6 +148,57 @@ def start_application(args):
         else:
             print("Provide IP using --ip")
             sys.exit(1)
+
+    # ---- Offline PCAP investigation ----
+    if args.option == "pcap":
+        if not args.input:
+            print("Provide --input <pcap> for PCAP investigation.")
+            sys.exit(1)
+
+        try:
+            packets = rdpcap(args.input)
+        except (OSError, ValueError) as exc:
+            print(f"Unable to read PCAP: {exc}")
+            sys.exit(1)
+
+        if not packets:
+            print("PCAP contains no packets.")
+            return
+
+        if args.summary or args.alert_on is not None:
+            summary = get_security_summary(packets)
+            print(_security_summary_table(summary))
+
+        if args.a:
+            print(f"\nAnalyzing {len(packets)} packets...")
+            for packet in packets:
+                analyze_packet(packet)
+
+        if args.s:
+            if args.p:
+                save_to_pcap(packets, args.p)
+            elif args.t:
+                save_to_txt(packets, args.t)
+            elif args.html:
+                save_to_html(packets, args.html)
+            else:
+                print("Use --p, --t, or --html to save the analyzed PCAP.")
+
+        if args.report_prefix:
+            report_paths = generate_incident_report(
+                packets,
+                args.report_prefix,
+                case_id=args.case_id,
+                analyst=args.analyst,
+                organization=args.organization,
+                interface=f"PCAP: {os.path.abspath(args.input)}",
+                evidence_files=[args.input],
+            )
+            print("\nIncident report generated:")
+            print(f"  HTML: {report_paths['html']}")
+            print(f"  TXT:  {report_paths['txt']}")
+            print(f"  JSON: {report_paths['json']}")
+        return
 
     # ---- External threat intel ----
     if args.option == "intel":
@@ -232,13 +286,14 @@ def main():
         "option",
         choices=["c", "lh", "block", "block-activate", "block-deactivate", "block-status", "intel"],
         help=(
-            "c: capture | lh: live-host detection | block: local blocklist management | "
+            "c: live capture | pcap: offline PCAP investigation | lh: live-host detection | block: local blocklist management | "
             "block-activate: enforce blocked IPs via firewall | block-deactivate: remove firewall rules | "
             "block-status: show firewall block state | intel: fetch/load threat intel and add IOCs"
         ),
     )
     parser.add_argument("--f", default="all", help="Filter expression (e.g. 'src host 10.0.0.1 and dst port 80')")
     parser.add_argument("--pc", type=int, help="Number of packets to capture")
+    parser.add_argument("--input", type=str, help="Input PCAP file for offline investigation mode")
     parser.add_argument("--a", action="store_true", help="Analyze captured packets in real time")
     parser.add_argument("--s", action="store_true", help="Save captured packets")
     parser.add_argument("--t", type=str, help="Save captured packets in TXT format")
@@ -269,6 +324,10 @@ def main():
 
     if args.option == "c" and not args.pc and not args.block and not args.unblock and not args.list_blocks and not args.clear_blocks:
         print("Provide --pc (packet count)")
+        sys.exit(1)
+
+    if args.option == "pcap" and not args.input:
+        print("Provide --input <pcap> for PCAP investigation.")
         sys.exit(1)
 
     if not args.offline:
