@@ -15,7 +15,7 @@
 | 📡 **Packet Capture & Analysis** | Capture traffic from any network interface and extract IPs, ports, protocols, and payload details |
 | 🔍 **Live Host Detection** | Enumerate live devices via ARP requests, mapping IP, MAC address, and NIC vendor |
 | 🛠 **Custom Packet Crafting** | Build and send custom packets for controlled network testing and assessment |
-| 🔐 **SHA-256 Authentication** | User login secured with SHA-256 password hashing — no plaintext credential storage |
+| 🔐 **Hardened Authentication** | Salted scrypt password verification with legacy SHA-256 migration and failed-attempt throttling |
 | 💾 **Data Export** | Export captured traffic to **PCAP**, **TXT**, or **HTML** for further analysis (e.g., in Wireshark) |
 | 🚨 **Vulnerability Signal Detection** | Flag unusual traffic patterns that may indicate security issues |
 | 📋 **Local IP Blocklist** | Track and flag known-bad IPs; blocklist hits influence risk scoring |
@@ -81,7 +81,7 @@ python Main.py block --list-blocks --offline
 
 ## Usage
 
-SecureNet Analyzer is driven entirely through the CLI. The first positional argument selects the **mode**: `c` (capture), `lh` (live-host detection), `block` (blocklist management), `block-activate`, `block-deactivate`, `block-status`, or `intel`.
+SecureNet Analyzer is driven entirely through the CLI. The first positional argument selects the **mode**: `c` (capture), `pcap` (offline investigation), `lh` (live-host detection), `block` (blocklist management), `block-activate`, `block-deactivate`, `block-status`, `audit-verify`, or `intel`.
 
 ### Primary modes
 | Mode | Description |
@@ -210,6 +210,7 @@ The `intel` mode loads a STIX2 JSON bundle, extracts IPv4/IPv6 indicators, print
 
 
 ### Example 7 — Offline PCAP investigation
+Offline investigation enforces file-size and packet-count limits. Adjust them explicitly when handling larger evidence sets, for example `--max-pcap-mb 1024 --max-pcap-packets 1000000`.
 ```bash
 python Main.py pcap --input evidence_CASE001.pcap --summary --report-prefix reports\\CASE001 --case-id CASE-001 --analyst "Security Analyst" --organization "Example SOC" --offline
 ```
