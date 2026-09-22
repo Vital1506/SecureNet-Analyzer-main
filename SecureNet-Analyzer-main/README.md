@@ -22,6 +22,12 @@
 | 🔥 **Real Firewall Blocking (Windows)** | Enforce the local blocklist by creating Windows Firewall block rules (inbound + outbound) for each blocked IP |
 | 📡 **Threat Intel Ingestion** | Load STIX2 bundles, extract IPv4/IPv6 IOCs, and optionally auto-add them to the blocklist |
 | 🚨 **Risk-Threshold Alerting** | Trigger an alert (stdout / file / exit code) when the risk score crosses a threshold |
+| 🧭 **Investigation Timeline** | Normalize suspicious events into a chronological, packet-linked incident timeline |
+| 🧩 **MITRE ATT&CK Mapping** | Map observed network/payload patterns to ATT&CK technique hypotheses for analyst triage |
+| 🎯 **IOC Extraction** | Extract observed IPs, domains, URLs, and ports into machine-readable investigation data |
+| 🔗 **Session Aggregation** | Group traffic into source/destination/protocol/port sessions with packet and byte counts |
+| 🧾 **Evidence Integrity & Custody** | SHA-256 evidence manifest plus an automated report-generation custody record |
+| 📦 **SIEM-Friendly JSON** | Export structured case data containing hosts, events, sessions, timeline, IOCs, and ATT&CK mappings |
 
 ---
 
@@ -111,6 +117,10 @@ SecureNet Analyzer is driven entirely through the CLI. The first positional argu
 | `--alert-on [score]` | Trigger an alert action when risk score reaches this threshold (capture mode) |
 | `--alert-file [path]` | Append threshold alerts to this file (capture mode) |
 | `--alert-exit` | Exit with code 2 when the threshold is crossed (capture mode) |
+| `--report-prefix` | Generate enriched HTML/TXT/JSON incident reports |
+| `--case-id` | Case/incident identifier written into reports |
+| `--analyst` | Analyst name recorded in report metadata/custody record |
+| `--organization` | Organization/team recorded in report metadata |
 
 ### Filter syntax
 Filters are case-insensitive and joined with `and`. Supported clauses:
@@ -190,6 +200,24 @@ python Main.py intel --intel-source my_threats.stix2.json --intel-auto-block --o
 ```
 
 The `intel` mode loads a STIX2 JSON bundle, extracts IPv4/IPv6 indicators, prints a summary, and optionally adds valid IP IOCs to the local blocklist. Non-IP indicators (file hashes, URLs, etc.) are counted but not added.
+
+
+### Example 7 — Investigation-grade incident package
+```bash
+python Main.py c --i WiFi --pc 500 --a --summary --s --p evidence_CASE001.pcap --report-prefix reports\\CASE001 --case-id CASE-001 --analyst "Security Analyst" --organization "Example SOC"
+```
+
+This produces a PCAP plus an investigation package containing:
+- **HTML** — analyst-friendly incident report with observed IP activity, security events, sessions, timeline, and evidence integrity.
+- **TXT** — plain-text case report suitable for handoff or archival.
+- **JSON** — machine-readable case data for downstream tooling/SIEM pipelines.
+- **Observed IP activity** — packet/byte counts, first/last seen, peers, ports, protocols, blocklist hits, and findings.
+- **Timeline** — packet-linked chronological events with heuristic MITRE ATT&CK technique mappings.
+- **IOCs** — observed IPs, domains, URLs, and ports.
+- **Evidence hashes** — SHA-256 hashes for supplied evidence files.
+- **Custody record** — an automated report-generation event identifying the analyst and case.
+
+**Important:** MITRE mappings and security findings are detection hypotheses, not proof of malicious intent or attribution. An IP address alone does not establish ownership or attacker identity. Preserve original PCAPs and follow your organization's formal evidence-preservation and chain-of-custody procedures when preparing material for legal or regulatory use.
 
 ---
 
