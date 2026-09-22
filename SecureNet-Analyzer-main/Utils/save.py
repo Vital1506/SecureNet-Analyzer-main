@@ -117,7 +117,10 @@ def _ensure_directory(filename):
 def save_to_html(captured_packets, filename):
     filename = _ensure_directory(filename)
 
-    protocol_counts, suspicious_alerts = get_protocol_summary(captured_packets)
+    blocked_ips = load_blocklist()
+    protocol_counts, suspicious_alerts = get_protocol_summary(
+        captured_packets, blocked_ips=blocked_ips
+    )
     summary = get_security_summary(captured_packets)
     rows = []
 
