@@ -244,7 +244,8 @@ def check_cli_block_commands():
     r = _run_cli(["block", "--list-blocks", "--offline"], timeout=15)
     _record("cli block list excludes removed", "192.168.99.99" not in r.stdout)
 
-    from Utils import blocklist\n    before = blocklist.load_blocklist()
+    from Utils import blocklist
+    before = blocklist.load_blocklist()
     r = _run_cli(["block", "--clear-blocks", "--offline"], timeout=15)
     _record("cli block --clear-blocks", r.returncode == 0 and "cleared" in r.stdout)
     after = blocklist.load_blocklist()
