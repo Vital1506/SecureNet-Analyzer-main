@@ -15,13 +15,13 @@ import tempfile
 PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 PASSWORD_FILE = os.path.join(PROJECT_ROOT, "password_hash.txt")
 SCRYPT_PREFIX = "scrypt"
-_SCRYPT_N = 2**17
+_SCRYPT_N = 2**16
 _SCRYPT_R = 8
 _SCRYPT_P = 1
 _SALT_BYTES = 16
 _DK_BYTES = 64
-_MAX_SCRYPT_N = 2**17
-_SCRYPT_MAXMEM = 256 * 1024 * 1024
+_MAX_SCRYPT_N = 2**16
+_SCRYPT_MAXMEM = 128 * 1024 * 1024
 _MAX_SCRYPT_R = 32
 _MAX_SCRYPT_P = 8
 _MAX_SALT_BYTES = 64
