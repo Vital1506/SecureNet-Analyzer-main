@@ -120,7 +120,7 @@ def build_incident_dataset(packets, resolve_hostnames=False):
         "hosts": records,
         "events": events,
         "sessions": build_sessions(packets),
-        "timeline": build_timeline(packets),
+        "timeline": build_timeline(packets, detections=detections),
         "case_summary": build_case_summary(packets, detections),
         "detections": detections,
         "generated_at": datetime.now(timezone.utc).isoformat(),
