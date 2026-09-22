@@ -3,7 +3,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
 from scapy.layers.inet import IP, TCP, UDP, ICMP
-from scapy.layers.inet6 import IPv6, ICMPv6
+from scapy.layers.inet6 import IPv6
 from scapy.layers.dns import DNS, DNSQR
 try:
     from scapy.layers.http import HTTPRequest, HTTPResponse
@@ -188,7 +188,7 @@ def build_timeline(packets, detections=None):
                 "protocol": (
                     "TCP" if TCP in packet
                     else "UDP" if UDP in packet
-                    else "ICMPv6" if ICMPv6 in packet
+                    else "ICMPv6" if IPv6 in packet and packet[IPv6].nh == 58
                     else "ICMP" if ICMP in packet
                     else "Other"
                 ),
