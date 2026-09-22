@@ -77,12 +77,9 @@ def _netsh(action: str, rule_name: str, direction: str, remote_ip: str) -> List[
         "firewall",
         action,
         "rule",
-        "name=",
-        rule_name,
-        "dir=",
-        direction,
-        "remoteip=",
-        remote_ip,
+        f"name={rule_name}",
+        f"dir={direction}",
+        f"remoteip={remote_ip}",
         "action=block",
         "profile=any",
     ]
@@ -252,7 +249,7 @@ def block_deactivate(dry_run: bool = False) -> str:
 
     for rule_name in rule_names:
         rc, out, err = _run(
-            ["netsh", "advfirewall", "firewall", "delete", "rule", "name=", rule_name],
+            ["netsh", "advfirewall", "firewall", "delete", "rule", f"name={rule_name}"],
             dry_run=False,
         )
         if rc == 0:
