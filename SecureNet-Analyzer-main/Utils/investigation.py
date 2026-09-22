@@ -3,6 +3,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
 from scapy.layers.inet import IP, TCP, UDP
+from scapy.layers.inet6 import IPv6
 from scapy.layers.dns import DNS, DNSQR
 try:
     from scapy.layers.http import HTTPRequest, HTTPResponse
@@ -28,6 +29,8 @@ MITRE_RULES = (
     ("T1105", "Ingress Tool Transfer", "wget/curl keyword in observed payload"),
     ("T1190", "Exploit Public-Facing Application", "Suspicious exploit-like payload pattern observed"),
 )
+
+MAX_INVESTIGATION_PAYLOAD_BYTES = 64 * 1024
 
 SUSPICIOUS_PATTERNS = {
     "T1059.001": re.compile(r"powershell", re.I),
@@ -126,10 +129,15 @@ def build_sessions(packets):
         "dst_port": None,
     })
     for packet in packets:
-        if IP not in packet and packet.__class__.__name__ != "IP":
+        if IP in packet:
+            network_layer = packet[IP]
+        elif IPv6 in packet:
+            network_layer = packet[IPv6]
+        else:
             continue
-        src = packet[IP].src if IP in packet else None
-        dst = packet[IP].dst if IP in packet else None
+
+        src = network_layer.src
+        dst = network_layer.dst
         proto, sport, dport = "Unknown", None, None
         if TCP in packet:
             proto, sport, dport = "TCP", int(packet[TCP].sport), int(packet[TCP].dport)
@@ -153,19 +161,25 @@ def build_timeline(packets, detections=None):
 
     for number, packet in enumerate(packets, 1):
         payload = ""
-        try:
-            if packet.haslayer("Raw"):
-                payload = packet["Raw"].load.decode(errors="ignore")
-        except Exception:
-            pass
+        if packet.haslayer("Raw"):
+            raw_payload = packet["Raw"].load
+            if not isinstance(raw_payload, bytes):
+                raw_payload = bytes(raw_payload)
+            payload = raw_payload[:MAX_INVESTIGATION_PAYLOAD_BYTES].decode(errors="ignore")
 
         mappings = mitre_mappings(packet, payload)
         iocs = extract_iocs(packet, payload)
         detection_ids = detection_index.get(number, [])
 
         if mappings or any(iocs.values()) or detection_ids:
-            src = packet[IP].src if IP in packet else "N/A"
-            dst = packet[IP].dst if IP in packet else "N/A"
+            if IP in packet:
+                src = packet[IP].src
+                dst = packet[IP].dst
+            elif IPv6 in packet:
+                src = packet[IPv6].src
+                dst = packet[IPv6].dst
+            else:
+                src = dst = "N/A"
             timeline.append({
                 "timestamp": utc_timestamp(packet),
                 "packet": number,
