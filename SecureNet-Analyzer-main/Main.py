@@ -23,6 +23,7 @@ from Utils.block_engine import (
     is_firewall_runtime,
 )
 from Utils.intel import run_intel
+from Utils.incident_report import generate_incident_report
 
 PASSWORD_FILE = "password_hash.txt"
 
@@ -198,6 +199,29 @@ def start_application(args):
             else:
                 print("Use --p, --t, or --html to save captured packets.")
 
+        if args.report_prefix:
+            evidence_files = []
+            if args.p:
+                evidence_files.append(args.p)
+            elif args.t:
+                evidence_files.append(args.t)
+            elif args.html:
+                evidence_files.append(args.html)
+
+            report_paths = generate_incident_report(
+                captured_packets,
+                args.report_prefix,
+                case_id=args.case_id,
+                analyst=args.analyst,
+                organization=args.organization,
+                interface=args.i or "Default interface",
+                evidence_files=evidence_files,
+            )
+            print("\nIncident report generated:")
+            print(f"  HTML: {report_paths['html']}")
+            print(f"  TXT:  {report_paths['txt']}")
+            print(f"  JSON: {report_paths['json']}")
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -236,6 +260,10 @@ def main():
     parser.add_argument("--alert-on", type=int, help="Exit / log when risk score reaches this threshold")
     parser.add_argument("--alert-file", type=str, help="Append threshold alerts to this file")
     parser.add_argument("--alert-exit", action="store_true", help="Exit with code 2 when threshold is crossed")
+    parser.add_argument("--report-prefix", type=str, help="Generate incident HTML/TXT/JSON reports using this output prefix")
+    parser.add_argument("--case-id", default="UNASSIGNED", help="Case or incident identifier for reporting")
+    parser.add_argument("--analyst", default="Not specified", help="Analyst name for the report")
+    parser.add_argument("--organization", default="Not specified", help="Organization/team name for the report")
 
     args = parser.parse_args()
 
