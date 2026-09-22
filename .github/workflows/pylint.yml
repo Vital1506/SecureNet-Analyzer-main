@@ -40,4 +40,4 @@ jobs:
       - name: Audit dependencies
         run: pip-audit -r requirements.txt
       - name: Run Pylint
-        run: pylint Main.py Utils --disable=missing-module-docstring,missing-function-docstring,missing-class-docstring,invalid-name,too-few-public-methods,broad-exception-caught,import-outside-toplevel,no-name-in-module,,line-too-long,too-many-branches,too-many-locals,too-many-return-statements,consider-using-with,unused-variable,unused-import,duplicate-code,no-else-break,too-many-statements,too-many-boolean-expressions,subprocess-run-check,bare-except,unspecified-encoding
+        run: pylint Main.py Utils --disable=missing-module-docstring,missing-function-docstring,missing-class-docstring,invalid-name,too-few-public-methods,broad-exception-caught,import-outside-toplevel,no-name-in-module,line-too-long,too-many-branches,too-many-locals,too-many-return-statements,consider-using-with,unused-variable,unused-import,duplicate-code,no-else-break,too-many-statements,too-many-boolean-expressions,subprocess-run-check,bare-except,unspecified-encoding
