@@ -20,7 +20,8 @@ _SCRYPT_R = 8
 _SCRYPT_P = 1
 _SALT_BYTES = 16
 _DK_BYTES = 64
-_MAX_SCRYPT_N = 2**18
+_MAX_SCRYPT_N = 2**17
+_SCRYPT_MAXMEM = 256 * 1024 * 1024
 _MAX_SCRYPT_R = 32
 _MAX_SCRYPT_P = 8
 _MAX_SALT_BYTES = 64
@@ -80,6 +81,7 @@ def _verify_scrypt(password, record):
             r=r,
             p=p,
             dklen=len(expected),
+            maxmem=_SCRYPT_MAXMEM,
         )
         return hmac.compare_digest(actual, expected)
     except (ValueError, TypeError, binascii.Error):
