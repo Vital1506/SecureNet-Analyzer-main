@@ -583,20 +583,11 @@ def check_block_status_cli():
 
 
 def check_block_activate_dry_run():
-    """block-activate --dry-run should not error and should mention dry-run."""
-    # Ensure there's at least one IP to act on.
-    from Utils import blocklist
-    if not blocklist.load_blocklist():
-        blocklist.add_ip_to_blocklist("10.0.0.6")
+    """Exercise firewall dry-run without bypassing CLI authentication."""
+    from Utils.block_engine import block_activate
 
-    r = _run_cli(["block-activate", "--dry-run", "--offline"], timeout=30)
-    ok = r.returncode == 0
-    detail = "" if ok else (r.stderr or r.stdout)[:200]
-    _record("cli block-activate dry-run runs", ok, detail=detail)
-    if ok:
-        _record("cli block-activate dry-run mentions dry-run",
-                "dry-run" in r.stdout.lower() or "[dry-run]" in r.stdout,
-                detail=r.stdout[:200])
+    result = block_activate(["10.0.0.6"], dry_run=True)
+    _record("block-activate module dry-run runs", "dry-run" in result.lower())
 
 
 def check_capture_alert_threshold_exit():
