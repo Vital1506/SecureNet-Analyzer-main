@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "securenet-analyzer"
+version = "0.1.0"
+description = "Defensive network detection and investigation toolkit built with Python and Scapy."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "SecureNet-Analyzer-main/LICENSE" }
+authors = [
+  { name = "Vittal Karthikeyan" }
+]
+dependencies = [
+  "scapy",
+  "mac-vendor-lookup",
+  "colorama"
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Security",
+  "Topic :: System :: Networking",
+  "Environment :: Console"
+]
+
+[project.scripts]
+securenet-analyzer = "Main:main"
+
+[tool.setuptools]
+package-dir = {"" = "SecureNet-Analyzer-main"}
+py-modules = ["Main"]
+
+[tool.setuptools.packages.find]
+where = ["SecureNet-Analyzer-main"]
+include = ["Utils*"]
+
+[tool.setuptools.package-data]
+Utils = ["sample_intel.stix2.json"]
