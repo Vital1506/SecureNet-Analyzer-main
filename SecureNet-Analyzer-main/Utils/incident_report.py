@@ -2,6 +2,7 @@ import hashlib
 import html
 import json
 import os
+import re
 import socket
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -24,6 +25,12 @@ def _sha256(path):
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _safe_case_id(case_id):
+    """Convert a case ID into a bounded filename-safe component."""
+    value = re.sub(r"[^A-Za-z0-9._-]+", "_", str(case_id)).strip("._")
+    return (value or "UNASSIGNED")[:80]
 
 
 def _hostname(ip):
@@ -128,7 +135,8 @@ def generate_incident_report(packets, prefix, case_id="UNASSIGNED",
     prefix = os.path.abspath(prefix)
     os.makedirs(os.path.dirname(prefix) or ".", exist_ok=True)
 
-    base = f"{prefix}_{case_id.replace(' ', '_')}"
+    safe_case_id = _safe_case_id(case_id)
+    base = f"{prefix}_{safe_case_id}"
     paths = {
         "json": base + ".json",
         "txt": base + ".txt",
