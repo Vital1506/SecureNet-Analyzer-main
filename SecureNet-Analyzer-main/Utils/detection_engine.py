@@ -113,15 +113,21 @@ def detect_horizontal_syn_scans(packets):
     groups = defaultdict(list)
 
     for event in events:
-        if event["protocol"] == "TCP" and event["syn"] and event["src"] and event["dst"]:
+        if (
+            event["protocol"] == "TCP"
+            and event["syn"]
+            and event["src"]
+            and event["dst"]
+            and event["epoch"] is not None
+        ):
             groups[event["src"]].append(event)
 
     findings = []
     for src, source_events in groups.items():
         source_events.sort(key=lambda item: item["epoch"])
-        for start in range(len(source_events)):
+        for start, start_event in enumerate(source_events):
             window = []
-            start_time = source_events[start]["epoch"]
+            start_time = start_event["epoch"]
             for event in source_events[start:]:
                 if event["epoch"] - start_time > rule["window_seconds"]:
                     break
@@ -174,15 +180,16 @@ def detect_vertical_syn_scans(packets):
             and event["src"]
             and event["dst"]
             and event["dport"] is not None
+            and event["epoch"] is not None
         ):
             groups[(event["src"], event["dst"])].append(event)
 
     findings = []
     for (src, dst), pair_events in groups.items():
         pair_events.sort(key=lambda item: item["epoch"])
-        for start in range(len(pair_events)):
+        for start, start_event in enumerate(pair_events):
             window = []
-            start_time = pair_events[start]["epoch"]
+            start_time = start_event["epoch"]
             for event in pair_events[start:]:
                 if event["epoch"] - start_time > rule["window_seconds"]:
                     break
@@ -233,7 +240,8 @@ def detect_periodic_beaconing(packets):
             event["protocol"] in {"TCP", "UDP"}
             and event["src"]
             and event["dst"]
-            and event["dport"] is not None
+            and event["dport"] in {80, 443, 8080, 8443}
+            and event["epoch"] is not None
         ):
             groups[(event["src"], event["dst"], event["protocol"], event["dport"])].append(event)
 
