@@ -102,42 +102,39 @@ def _protocol_name(packet):
 
 
 def parse_filter_string(filter_str):
+    """Parse the explicit filter language and reject unsupported input."""
     if filter_str is None or filter_str.strip().lower() == "all":
         return None
 
     filter_dict = {}
-    conditions = filter_str.split(' and ')
+    conditions = re.split(r"\s+and\s+", filter_str.strip(), flags=re.IGNORECASE)
 
     for condition in conditions:
         condition = condition.strip()
         if not condition:
-            continue
+            raise ValueError("Empty filter condition is not allowed.")
 
-        lowered = condition.lower()
-
-        ip_match = IPV4_CONDITION_RE.search(condition)
+        ip_match = IPV4_CONDITION_RE.fullmatch(condition)
         if ip_match:
-            ip = ip_match.group('ip')
-            direction = ip_match.group('direction')
-            if _validate_ipv4(ip):
-                key = f"{direction}_ip"
-                filter_dict[key] = ip
-                continue
-            if _validate_ipv6(ip):
-                key = f"{direction}_ip"
-                filter_dict[key] = ip
-                continue
-
-        port_match = PORT_CONDITION_RE.search(condition)
-        if port_match:
-            port = int(port_match.group('port'))
-            direction = port_match.group('direction')
-            key = f"{direction}_port"
-            filter_dict[key] = port
+            ip = ip_match.group("ip")
+            if not (_validate_ipv4(ip) or _validate_ipv6(ip)):
+                raise ValueError(f"Invalid IP address in filter: {ip}")
+            filter_dict[f"{ip_match.group('direction')}_ip"] = ip
             continue
 
-        protocol_match = PROTOCOL_CONDITION_RE.search(condition)
+        port_match = PORT_CONDITION_RE.fullmatch(condition)
+        if port_match:
+            port = int(port_match.group("port"))
+            if not 1 <= port <= 65535:
+                raise ValueError(f"Port must be between 1 and 65535: {port}")
+            filter_dict[f"{port_match.group('direction')}_port"] = port
+            continue
+
+        protocol_match = PROTOCOL_CONDITION_RE.fullmatch(condition)
         if protocol_match:
-            filter_dict['protocol'] = protocol_match.group('protocol').lower()
+            filter_dict["protocol"] = protocol_match.group("protocol").lower()
+            continue
+
+        raise ValueError(f"Unsupported filter condition: {condition}")
 
     return filter_dict
