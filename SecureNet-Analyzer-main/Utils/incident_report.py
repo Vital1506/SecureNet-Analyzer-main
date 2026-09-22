@@ -30,7 +30,10 @@ def _sha256(path):
 
 def _safe_case_id(case_id):
     """Convert a case ID into a bounded filename-safe component."""
-    value = re.sub(r"[^A-Za-z0-9._-]+", "_", str(case_id)).strip("._")
+    value = re.sub(r"[^A-Za-z0-9._-]+", "_", str(case_id))
+    while ".." in value:
+        value = value.replace("..", "_")
+    value = value.strip("._-")
     return (value or "UNASSIGNED")[:80]
 
 
