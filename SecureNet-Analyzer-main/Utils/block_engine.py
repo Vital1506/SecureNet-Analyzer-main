@@ -23,9 +23,9 @@ import subprocess
 import sys
 from typing import List, Tuple
 
-from Utils.audit import append_audit
-
 import colorama
+
+from Utils.audit import append_audit
 
 colorama.init(autoreset=True)
 
