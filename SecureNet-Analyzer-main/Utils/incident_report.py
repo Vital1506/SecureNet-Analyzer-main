@@ -29,11 +29,11 @@ def _sha256(path):
 def _hostname(ip):
     try:
         return socket.gethostbyaddr(ip)[0]
-    except Exception:
+    except (OSError, socket.herror, socket.gaierror):
         return "N/A"
 
 
-def build_incident_dataset(packets):
+def build_incident_dataset(packets, resolve_hostnames=False):
     hosts = defaultdict(lambda: {
         "packets": 0, "bytes": 0, "first_seen": None, "last_seen": None,
         "protocols": Counter(), "ports": Counter(), "peers": Counter(),
@@ -89,7 +89,7 @@ def build_incident_dataset(packets):
     for ip, host in hosts.items():
         records.append({
             "ip": ip,
-            "hostname": _hostname(ip),
+            "hostname": _hostname(ip) if resolve_hostnames else "N/A",
             "packets": host["packets"],
             "bytes": host["bytes"],
             "first_seen": host["first_seen"],
@@ -121,8 +121,9 @@ def generate_incident_report(packets, prefix, case_id="UNASSIGNED",
                              analyst="Not specified",
                              organization="Not specified",
                              interface="Default interface",
-                             evidence_files=None):
-    dataset = build_incident_dataset(packets)
+                             evidence_files=None,
+                             resolve_hostnames=False):
+    dataset = build_incident_dataset(packets, resolve_hostnames=resolve_hostnames)
     evidence_files = evidence_files or []
     prefix = os.path.abspath(prefix)
     os.makedirs(os.path.dirname(prefix) or ".", exist_ok=True)
