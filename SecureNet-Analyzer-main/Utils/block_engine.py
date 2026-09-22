@@ -89,10 +89,10 @@ def _netsh(action: str, rule_name: str, direction: str, remote_ip: str) -> List[
 
 
 def _run(cmd: List[str], dry_run: bool) -> Tuple[int, str, str]:
-    if dry_run or not _elevated():
-        # In dry_run mode, or when we can't confirm elevation, just show
-        # the command that *would* run.
+    if dry_run:
         return 0, " ".join(cmd), ""
+    if not _elevated():
+        return -1, "", "Windows Administrator privileges are required."
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         return proc.returncode, proc.stdout, proc.stderr
@@ -106,6 +106,8 @@ def _run(cmd: List[str], dry_run: bool) -> Tuple[int, str, str]:
 
 def _rule_exists(rule_name: str) -> bool:
     """Check whether a firewall rule with this exact name exists."""
+    if sys.platform != "win32" or shutil.which("powershell") is None:
+        return False
     script = (
         f"try {{ "
         f"$r = Get-NetFirewallRule -Name '{rule_name}' -ErrorAction Stop; "
@@ -118,6 +120,30 @@ def _rule_exists(rule_name: str) -> bool:
         return proc.stdout.strip() == "1"
     except Exception:
         return False
+
+
+def _list_secure_rule_names() -> List[str]:
+    """Return existing SecureNet firewall rule names."""
+    if sys.platform != "win32" or shutil.which("powershell") is None:
+        return []
+
+    script = (
+        "$rules = Get-NetFirewallRule -Name 'SecureNet_Block_*' "
+        "-ErrorAction SilentlyContinue; "
+        "if ($rules) { $rules | Select-Object -ExpandProperty Name }"
+    )
+    try:
+        proc = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if proc.returncode != 0:
+            return []
+        return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    except (OSError, subprocess.SubprocessError):
+        return []
 
 
 def block_activate(ips: List[str], dry_run: bool = False) -> str:
@@ -134,6 +160,8 @@ def block_activate(ips: List[str], dry_run: bool = False) -> str:
             invalid.append(ip)
 
     lines: List[str] = []
+    if not dry_run and not _elevated():
+        return "Firewall enforcement refused: Windows Administrator privileges are required."
     lines.append(f"Block activation — {len(valid)} IPs to enforce, {len(invalid)} skipped as invalid.")
     if invalid:
         lines.append("Skipped (not valid IPs): " + ", ".join(invalid))
@@ -151,17 +179,17 @@ def block_activate(ips: List[str], dry_run: bool = False) -> str:
         in_name = _rule_name(BLOCK_PREFIX_IN, ip)
         out_name = _rule_name(BLOCK_PREFIX_OUT, ip)
 
+        if dry_run:
+            details.append(f"  [dry-run] would create inbound/outbound rules for {ip}")
+            created += 1
+            continue
+
         in_exists = _rule_exists(in_name)
         out_exists = _rule_exists(out_name)
 
         if in_exists and out_exists:
             already += 1
             details.append(f"  [already] {ip}")
-            continue
-
-        if dry_run:
-            details.append(f"  [dry-run] would create rules for {ip}")
-            created += 1
             continue
 
         # Create inbound block rule
@@ -197,74 +225,57 @@ def block_activate(ips: List[str], dry_run: bool = False) -> str:
 
 def block_deactivate(dry_run: bool = False) -> str:
     """Remove all SecureNet block rules from the firewall."""
-    lines: List[str] = []
+    if not dry_run and not _elevated():
+        return "Firewall deactivation refused: Windows Administrator privileges are required."
+
+    if dry_run:
+        append_audit(
+            "FIREWALL_BLOCK_DEACTIVATE",
+            metadata={"removed": 0, "failed": 0, "dry_run": True},
+        )
+        return (
+            "Block deactivation — dry-run; no firewall commands will be executed.\n"
+            "  Would remove any existing SecureNet_Block_* rules."
+        )
+
+    rule_names = _list_secure_rule_names()
+    if not rule_names:
+        append_audit(
+            "FIREWALL_BLOCK_DEACTIVATE",
+            metadata={"removed": 0, "failed": 0, "dry_run": False},
+        )
+        return "No SecureNet firewall rules found."
+
     removed = 0
-    missing = 0
-    details: List[str] = []
+    failed = 0
+    details = []
 
-    # Enumerate candidate rule names by scanning the local blocklist.
-    try:
-        from Utils.blocklist import load_blocklist
-        ips = load_blocklist()
-    except Exception:
-        ips = []
-
-    if not ips:
-        lines.append("Local blocklist is empty — nothing to remove.")
-        return "\n".join(lines)
-
-    for ip in ips:
-        if not _is_valid_ip(ip):
-            continue
-        ip_norm = _norm(ip)
-        in_name = _rule_name(BLOCK_PREFIX_IN, ip_norm)
-        out_name = _rule_name(BLOCK_PREFIX_OUT, ip_norm)
-
-        if dry_run:
-            in_exist = _rule_exists(in_name)
-            out_exist = _rule_exists(out_name)
-            if in_exist or out_exist:
-                details.append(f"  [dry-run] would remove rules for {ip}")
-                removed += 1
-            else:
-                details.append(f"  [dry-run] no rules found for {ip}")
-                missing += 1
-            continue
-
-        in_exist = _rule_exists(in_name)
-        out_exist = _rule_exists(out_name)
-
-        if in_exist:
-            rc, _, err = _run(
-                ["netsh", "advfirewall", "firewall", "delete", "rule", "name=", in_name],
-                dry_run=False,
-            )
-            if rc != 0:
-                details.append(f"  [fail-delete] {in_name}: {(err or '').strip()[:120]}")
-                missing += 1
-            else:
-                removed += 1
+    for rule_name in rule_names:
+        rc, out, err = _run(
+            ["netsh", "advfirewall", "firewall", "delete", "rule", "name=", rule_name],
+            dry_run=False,
+        )
+        if rc == 0:
+            removed += 1
+            details.append(f"  [removed] {rule_name}")
         else:
-            missing += 1
-
-        if out_exist:
-            rc, _, err = _run(
-                ["netsh", "advfirewall", "firewall", "delete", "rule", "name=", out_name],
-                dry_run=False,
+            failed += 1
+            details.append(
+                f"  [fail-delete] {rule_name}: {(err or out).strip()[:160]}"
             )
-            if rc != 0:
-                details.append(f"  [fail-delete] {out_name}: {(err or '').strip()[:120]}")
-                missing += 1
-            else:
-                removed += 1
-        else:
-            missing += 1
 
-    lines.append(f"Block deactivation — removed {removed} rule(s), {missing} not found/skipped.")
-    lines.extend(details)
-    append_audit("FIREWALL_BLOCK_DEACTIVATE", metadata={"removed": removed, "missing": missing, "dry_run": dry_run})
-    return "\n".join(lines)
-
+    append_audit(
+        "FIREWALL_BLOCK_DEACTIVATE",
+        metadata={
+            "removed": removed,
+            "failed": failed,
+            "dry_run": False,
+            "rules": rule_names,
+        },
+    )
+    return "\n".join(
+        [f"Block deactivation — removed {removed} rule(s), {failed} failed."] + details
+    )
 
 def block_status() -> str:
     """Report the current firewall block state for SecureNet rules."""
@@ -294,7 +305,7 @@ def block_status() -> str:
             "}"
         )
         proc = subprocess.run(
-            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
             capture_output=True,
             text=True,
             timeout=60,
