@@ -1,11 +1,9 @@
-import ipaddress
 import re
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
 from scapy.layers.inet import DNS, DNSQR, IP, TCP, UDP
 from scapy.layers.http import HTTPRequest, HTTPResponse
-from scapy.layers.tls.record import TLS
 
 MITRE_RULES = (
     ("T1046", "Network Service Scanning", "TCP SYN traffic concentrated on sensitive/service ports"),
@@ -35,12 +33,6 @@ def utc_timestamp(packet):
     except (TypeError, ValueError, OSError):
         return "N/A"
 
-def safe_ip(value):
-    try:
-        return str(ipaddress.ip_address(value))
-    except ValueError:
-        return None
-
 def extract_iocs(packet, payload=""):
     iocs = {"ipv4": [], "ipv6": [], "domains": [], "urls": [], "ports": []}
     for value in (getattr(packet[IP], "src", None), getattr(packet[IP], "dst", None)) if IP in packet else ():
@@ -48,13 +40,12 @@ def extract_iocs(packet, payload=""):
             iocs["ipv4"].append(value)
     if packet.haslayer("IPv6"):
         iocs["ipv6"].extend([packet["IPv6"].src, packet["IPv6"].dst])
-    info = []
     if TCP in packet:
         iocs["ports"].extend([int(packet[TCP].sport), int(packet[TCP].dport)])
     elif UDP in packet:
         iocs["ports"].extend([int(packet[UDP].sport), int(packet[UDP].dport)])
     text = payload or ""
-    for match in re.findall(r"https?://[^\s<>"]+", text, re.I):
+    for match in re.findall(r"https?://[^\\s<>\"]+", text, re.I):
         iocs["urls"].append(match.rstrip(".,);]"))
     for match in re.findall(r"\b(?:[a-z0-9-]+\.)+[a-z]{2,63}\b", text, re.I):
         if match.lower() not in {"example.com", "localhost.localdomain"}:
